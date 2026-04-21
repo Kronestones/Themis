@@ -341,6 +341,15 @@ class BridgeTranslator:
             "• Consider airplane mode if you don't need connectivity.\n"
             "• Contact ACLU: aclu.org or 212-549-2500"
         ),
+        "robot": (
+            "If an autonomous surveillance robot is in your area:\n"
+            "• You have the right to film it in public — it is filming you.\n"
+            "• Document: time, location, unit markings, direction of travel.\n"
+            "• Request deployment authorization via FOIA — who authorized it, why, for how long.\n"
+            "• Robots collecting biometric data may violate local ordinances — check your city.\n"
+            "• Contact ACLU: aclu.org — autonomous surveillance is an emerging rights frontier.\n"
+            "• Do not obstruct or touch the unit — document from a safe distance."
+        ),
     }
 
     def translate(self, detection: dict, language: str = "en") -> str:
@@ -391,6 +400,16 @@ class BridgeTranslator:
                 "share surveillance data. There are 80+ in the US. "
                 "They collect information on people with no criminal history. "
                 "They have a documented history of targeting activists and communities of color."
+            ),
+            "robot": (
+                "Autonomous surveillance robots are AI-powered ground units deployed in public spaces. "
+                "Companies like Knightscope sell them to police, corporations, and private security. "
+                "They record video, collect audio, and some use facial recognition. "
+                "They can generate biometric profiles without your knowledge or consent. "
+                "With AI, data collected can be used to generate synthetic images — "
+                "placing you at locations you never visited, doing things you never did. "
+                "No federal law currently regulates their use. "
+                "Themis tracks them so you can make informed decisions about where you go."
             ),
         }
 

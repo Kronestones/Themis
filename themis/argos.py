@@ -79,6 +79,7 @@ class ArgosScanner:
         detections += self._scan_wifi_surveillance(settings)
         detections += self._scan_network_devices(settings)
         detections += self._scan_drone_signals(settings)
+        detections += self._scan_autonomous_ground_vehicles(settings)
 
         return detections
 
@@ -354,6 +355,75 @@ class ArgosScanner:
         if current:
             networks.append(current)
         return networks
+
+    def _scan_autonomous_ground_vehicles(self, settings: dict) -> list:
+        """
+        Scan for autonomous ground surveillance robots.
+        Knightscope, Boston Dynamics Spot, Robotic Assistance Devices (RAD),
+        and other AI patrol units have detectable network signatures.
+        """
+        detections = []
+
+        ROBOT_MAC_PREFIXES = {
+            "00:1e:c0": "Knightscope security robot",
+            "b8:27:eb": "Raspberry Pi — possible autonomous unit",
+            "dc:a6:32": "Raspberry Pi 4 — possible autonomous unit",
+            "00:17:88": "Philips Hue / IoT — possible robot component",
+            "ac:87:a3": "Apple — possible coordination device",
+            "b4:e6:2a": "Boston Dynamics network component",
+        }
+
+        ROBOT_SSID_PATTERNS = [
+            "knightscope", "ksoc", "rad-robot", "robotic",
+            "autonomous", "patrol", "k5", "k3", "spot-"
+        ]
+
+        ROBOT_PORTS = {
+            8080: "Robot web interface",
+            9090: "ROS — Robot Operating System",
+            11311: "ROS master — autonomous vehicle coordination",
+            8888:  "Robot control interface",
+            4000:  "Knightscope command port",
+        }
+
+        # Check WiFi networks for robot SSIDs
+        networks = self._get_wifi_networks()
+        for net in networks:
+            ssid = net.get("ssid", "").lower()
+            for pattern in ROBOT_SSID_PATTERNS:
+                if pattern in ssid:
+                    detections.append({
+                        "type":     "autonomous_ground_vehicle",
+                        "detail":   f"Autonomous patrol unit detected: {net.get('ssid')} — signal {net.get('signal', 'unknown')} dBm",
+                        "severity": "high",
+                        "rights":   "You have the right to document this unit. Autonomous surveillance robots in public spaces are subject to public records requests regarding their deployment authorization.",
+                        "source":   "wifi_scan",
+                    })
+                    break
+
+        # Check ARP table for known robot MAC prefixes
+        devices = self._arp_scan()
+        for device in devices:
+            mac = device.get("mac", "").lower()
+            prefix = ":".join(mac.split(":")[:3])
+            if prefix in ROBOT_MAC_PREFIXES:
+                unit_type = ROBOT_MAC_PREFIXES[prefix]
+                # Check for robot-specific open ports
+                ip = device.get("ip", "")
+                confirmed_ports = []
+                for port, desc in ROBOT_PORTS.items():
+                    if self._port_open(ip, port, timeout=0.5):
+                        confirmed_ports.append(f"{port} ({desc})")
+                if confirmed_ports:
+                    detections.append({
+                        "type":     "autonomous_ground_vehicle",
+                        "detail":   f"Confirmed autonomous unit: {unit_type} at {ip} — open ports: {', '.join(confirmed_ports)}",
+                        "severity": "high",
+                        "rights":   "Document the unit, its location, and time. Request deployment records via FOIA. Autonomous robots collecting biometric data in public spaces may violate local ordinances.",
+                        "source":   "network_scan",
+                    })
+
+        return detections
 
     def _arp_scan(self) -> list:
         """Get local network devices via ARP table."""

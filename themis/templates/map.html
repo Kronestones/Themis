@@ -101,7 +101,7 @@
         <div class="legend-row" onclick="toggleLayer('ai_surveillance',this)"><div class="legend-dot" style="background:#e8874a"></div>AI Surveillance</div>
         <div class="legend-row" onclick="toggleLayer('imsi_catcher',this)"><div class="legend-dot" style="background:#e05297"></div>IMSI Catchers</div>
         <div class="legend-row" onclick="toggleLayer('border_surveillance',this)"><div class="legend-dot" style="background:#4abfbf"></div>Border Surveillance</div>
-        <div class="legend-row" onclick="toggleLayer('drone_signal',this)"><div class="legend-dot" style="background:#4abf7e"></div>Police Drones</div>
+        <div class="legend-row" onclick="toggleLayer('drone_signal',this)"><div class="legend-dot" style="background:#c8e04a"></div>Police Drones</div>
       </div>
       <div id="filter-tabs">
         <div class="tab active" onclick="switchTab('all',this)">All</div>
@@ -123,7 +123,7 @@
   </div>
 </div>
 <script>
-const INFRA_COLORS={fusion_center:'#9b6dd4',ice_facility:'#e05252',camera_network:'#d4a843',lpr_network:'#4a8fd4',ai_surveillance:'#e8874a',ai_surveillance_local:'#e8874a',ai_surveillance_port:'#e8874a',imsi_catcher:'#e05297',border_surveillance:'#4abfbf',drone_signal:'#4abf7e'};
+const INFRA_COLORS={fusion_center:'#9b6dd4',ice_facility:'#e05252',camera_network:'#d4a843',lpr_network:'#4a8fd4',ai_surveillance:'#e8874a',ai_surveillance_local:'#e8874a',ai_surveillance_port:'#e8874a',imsi_catcher:'#e05297',border_surveillance:'#4abfbf',drone_signal:'#c8e04a'};
 const DET_COLORS={drone_signal:'#4abf7e',drone_bluetooth:'#4abf7e',robot_detection:'#4abf7e',imsi_catcher:'#e05252',facial_recognition:'#e05252',surveillance_camera:'#d4a843',surveillance_device_local:'#d4a843',license_plate_reader:'#4a8fd4',known_infrastructure:'#9b6dd4',default:'#c8cdd8'};
 const LABELS={fusion_center:'Fusion Center',ice_facility:'ICE Facility',camera_network:'Camera Network',lpr_network:'LPR Network',drone_signal:'Drone Detected',drone_bluetooth:'Drone (BLE)',robot_detection:'Autonomous Robot',imsi_catcher:'IMSI Catcher / Stingray',facial_recognition:'Facial Recognition',surveillance_camera:'Surveillance Camera',surveillance_device_local:'Surveillance Device',license_plate_reader:'License Plate Reader',known_infrastructure:'Known Infrastructure',ai_surveillance:'AI Surveillance',ai_surveillance_local:'AI Surveillance (Local)',ai_surveillance_port:'AI Surveillance Port',imsi_catcher:'IMSI Catcher / Stingray',border_surveillance:'Border Surveillance',drone_signal:'Police Drone Program'};
 const map=L.map('map',{center:[39.5,-98.35],zoom:4});
@@ -194,7 +194,7 @@ loadAll();
     <div class="d-legend-row"><div class="d-dot" style="background:#e8874a"></div>AI Surveillance</div>
     <div class="d-legend-row"><div class="d-dot" style="background:#e05297"></div>IMSI Catchers</div>
     <div class="d-legend-row"><div class="d-dot" style="background:#4abfbf"></div>Border Surveillance</div>
-    <div class="d-legend-row"><div class="d-dot" style="background:#4abf7e"></div>Police Drones</div>
+    <div class="d-legend-row"><div class="d-dot" style="background:#c8e04a"></div>Police Drones</div>
   </div>
   <div class="d-section">
     <h3>ICE Facilities</h3>

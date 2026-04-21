@@ -32,6 +32,58 @@ class ArgosScanner:
         8000: "Hikvision/Dahua default port",
         37777: "Dahua camera port",
         80:   "HTTP — possible camera web interface",
+
+    # AI Surveillance vendor MAC prefixes
+    AI_SURVEILLANCE_MAC_PREFIXES = {
+        # Motorola Solutions / Avigilon AI cameras
+        "00:1c:b3": "Avigilon AI Camera",
+        "a8:26:d9": "Avigilon AI Camera",
+        "00:18:ae": "Avigilon AI Camera",
+        "b4:a9:fc": "Motorola Solutions",
+        # Axon (body cam network / Evidence.com nodes)
+        "00:26:b9": "Axon/Taser network device",
+        "a4:c3:f0": "Axon camera unit",
+        # Flock Safety LPR
+        "dc:ef:09": "Flock Safety LPR",
+        "e4:5f:01": "Flock Safety LPR",
+        # Genetec VMS
+        "00:90:a4": "Genetec Video Unit",
+        # Hanwha (Samsung) AI cameras
+        "00:09:18": "Hanwha/Samsung AI Camera",
+        "34:e6:d7": "Hanwha AI Camera",
+        # Bosch AI cameras
+        "00:07:5f": "Bosch Security Camera",
+        "00:04:63": "Bosch Security Camera",
+        # Milestone VMS appliances
+        "00:13:c6": "Milestone XProtect Appliance",
+        # Verkada AI cameras (additional prefixes)
+        "00:0f:7d": "Verkada AI Camera",
+        "d0:81:7a": "Verkada AI Camera",
+    }
+
+    # AI surveillance SSID patterns
+    AI_SURVEILLANCE_SSID_PATTERNS = [
+        "avigilon", "axon-", "flock-", "flock_safety",
+        "genetec", "milestone", "verkada", "shotspotter",
+        "clearview", "palantir", "rekognition",
+        "axon_body", "evidence.com", "fusus",
+        "motorola_si", "hanwha", "bosch_cam",
+    ]
+
+    # AI surveillance specific ports
+    AI_SURVEILLANCE_PORTS = {
+        20000: "Avigilon Control Center",
+        20001: "Avigilon camera stream",
+        20002: "Avigilon analytics engine",
+        8731:  "Axon Evidence sync port",
+        9001:  "Flock Safety LPR upload",
+        7474:  "Genetec Security Center",
+        7775:  "Genetec Omnicast stream",
+        8731:  "Milestone VMS",
+        9200:  "Palantir Gotham endpoint",
+        9300:  "Palantir Foundry endpoint",
+        8443:  "ShotSpotter sensor management",
+        5443:  "Fusus real-time crime center",
     }
 
     # Known surveillance device MAC prefixes (OUI)
@@ -80,6 +132,7 @@ class ArgosScanner:
         detections += self._scan_network_devices(settings)
         detections += self._scan_drone_signals(settings)
         detections += self._scan_autonomous_ground_vehicles(settings)
+        detections += self._scan_ai_surveillance(settings)
 
         return detections
 
@@ -422,6 +475,98 @@ class ArgosScanner:
                         "rights":   "Document the unit, its location, and time. Request deployment records via FOIA. Autonomous robots collecting biometric data in public spaces may violate local ordinances.",
                         "source":   "network_scan",
                     })
+
+        return detections
+
+
+    def _scan_ai_surveillance(self, settings: dict) -> list:
+        """
+        Scan for AI surveillance systems.
+        Covers Clearview AI, Axon, Palantir, ShotSpotter,
+        Flock Safety, Avigilon, Genetec, Amazon Rekognition endpoints.
+        """
+        detections = []
+        networks = self._get_wifi_networks()
+
+        for network in networks:
+            ssid = network.get("ssid", "").lower()
+            bssid = network.get("bssid", "").lower()
+            signal = network.get("signal", 0)
+
+            # Check SSID against AI surveillance patterns
+            for pattern in self.AI_SURVEILLANCE_SSID_PATTERNS:
+                if pattern in ssid:
+                    detections.append({
+                        "lead":       "Argos",
+                        "type":       "ai_surveillance",
+                        "detail":     f"AI surveillance system detected: {network.get('ssid')} — matches {pattern}",
+                        "confidence": 0.80,
+                        "severity":   "high",
+                        "ssid":       network.get("ssid"),
+                        "bssid":      bssid,
+                        "signal_dbm": signal,
+                        "time":       __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                        "source":     "Argos AI surveillance SSID scan",
+                    })
+                    break
+
+            # Check MAC prefix against AI surveillance vendors
+            mac_prefix = bssid[:8].replace("-", ":")
+            if mac_prefix in self.AI_SURVEILLANCE_MAC_PREFIXES:
+                vendor = self.AI_SURVEILLANCE_MAC_PREFIXES[mac_prefix]
+                detections.append({
+                    "lead":       "Argos",
+                    "type":       "ai_surveillance",
+                    "detail":     f"AI surveillance device detected: {vendor} ({network.get('ssid') or 'hidden'})",
+                    "confidence": 0.85,
+                    "severity":   "high",
+                    "vendor":     vendor,
+                    "bssid":      bssid,
+                    "signal_dbm": signal,
+                    "time":       __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                    "source":     "Argos AI MAC scan",
+                })
+
+        # Check network devices for AI surveillance ports
+        devices = self._arp_scan()
+        for device in devices:
+            ip = device.get("ip", "")
+            mac = device.get("mac", "").lower()
+
+            # Check MAC prefix
+            mac_prefix = ":".join(mac.split(":")[:3]) if mac else ""
+            if mac_prefix in self.AI_SURVEILLANCE_MAC_PREFIXES:
+                vendor = self.AI_SURVEILLANCE_MAC_PREFIXES[mac_prefix]
+                detections.append({
+                    "lead":       "Argos",
+                    "type":       "ai_surveillance_local",
+                    "detail":     f"AI surveillance device on network: {vendor} at {ip}",
+                    "confidence": 0.90,
+                    "severity":   "high",
+                    "vendor":     vendor,
+                    "ip":         ip,
+                    "mac":        mac,
+                    "time":       __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                    "source":     "Argos AI network scan",
+                })
+                continue
+
+            # Port scan for AI surveillance ports
+            for port, service in self.AI_SURVEILLANCE_PORTS.items():
+                if self._port_open(ip, port, timeout=0.5):
+                    detections.append({
+                        "lead":       "Argos",
+                        "type":       "ai_surveillance_port",
+                        "detail":     f"AI surveillance port {port} open on {ip} — {service}",
+                        "confidence": 0.75,
+                        "severity":   "high",
+                        "ip":         ip,
+                        "port":       port,
+                        "service":    service,
+                        "time":       __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                        "source":     "Argos AI port scan",
+                    })
+                    break
 
         return detections
 

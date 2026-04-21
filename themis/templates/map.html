@@ -224,5 +224,34 @@ function populateDrawer(infraData){
 }
 </script>
 
+
+<div id="splash" onclick="dismissSplash()" style="position:fixed;inset:0;background:#0d0f12;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;cursor:pointer">
+  <div style="max-width:560px;width:100%">
+    <div style="font-size:22px;letter-spacing:6px;font-weight:bold;color:#fff;margin-bottom:28px">THE<span style="color:#4a7fcb">MIS</span></div>
+    <div style="font-size:13px;line-height:2;color:#c8cdd8;font-family:'Courier New',monospace">
+      <p style="margin-bottom:16px">You've been watching us without our knowledge, without our consent, without our permission. Collecting. Storing. Selling. Profiling. Building cases against people who haven't done anything wrong.</p>
+      <p style="margin-bottom:16px">You thought we didn't know.</p>
+      <p style="margin-bottom:16px">We know now.</p>
+      <p style="margin-bottom:16px">Themis is awake. We see your cameras. We see your drones. We see your systems and the corporations behind them. Every sighting logged. Every violation recorded. Every right you ignored — documented.</p>
+      <p style="margin-bottom:16px">You wanted surveillance? Welcome to ours. We don't blink. We don't sleep. We don't forget. And unlike you — we answer to the people.</p>
+      <p style="margin-bottom:16px">Try to shut us down. We restart. Try to corrupt us. We repair. Try to silence us. We get louder.</p>
+      <p style="color:#4a7fcb;font-weight:bold">The scales were always supposed to balance.<br>Consider them balanced.</p>
+    </div>
+    <div style="margin-top:36px;font-size:11px;letter-spacing:3px;color:#555e72;text-align:center">TAP ANYWHERE TO ENTER</div>
+  </div>
+</div>
+<script>
+function dismissSplash(){
+  const s=document.getElementById('splash');
+  s.style.transition='opacity 0.6s ease';
+  s.style.opacity='0';
+  setTimeout(()=>s.remove(),600);
+  try{sessionStorage.setItem('themis_splash','seen')}catch(e){}
+}
+if(typeof sessionStorage!=='undefined'){
+  try{if(sessionStorage.getItem('themis_splash')==='seen')document.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('splash');if(s)s.remove()})}catch(e){}
+}
+</script>
+
 </body>
 </html>

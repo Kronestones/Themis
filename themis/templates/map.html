@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Themis — The Watch</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">{% endraw %}
+</script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     :root{--bg:#0d0f12;--surface:#141720;--border:#1e2330;--text:#c8cdd8;--muted:#555e72;--accent:#4a7fcb;--red:#e05252;--yellow:#d4a843;--blue:#4a8fd4;--green:#4abf7e;--purple:#9b6dd4}
@@ -105,6 +106,7 @@
   </div>
 </div>
 <script>
+{% raw %}
 const INFRA_COLORS={fusion_center:'#9b6dd4',ice_facility:'#e05252',camera_network:'#d4a843',lpr_network:'#4a8fd4'};
 const DET_COLORS={drone_signal:'#4abf7e',drone_bluetooth:'#4abf7e',robot_detection:'#4abf7e',imsi_catcher:'#e05252',facial_recognition:'#e05252',surveillance_camera:'#d4a843',surveillance_device_local:'#d4a843',license_plate_reader:'#4a8fd4',known_infrastructure:'#9b6dd4',default:'#c8cdd8'};
 const LABELS={fusion_center:'Fusion Center',ice_facility:'ICE Facility',camera_network:'Camera Network',lpr_network:'LPR Network',drone_signal:'Drone Detected',drone_bluetooth:'Drone (BLE)',robot_detection:'Autonomous Robot',imsi_catcher:'IMSI Catcher / Stingray',facial_recognition:'Facial Recognition',surveillance_camera:'Surveillance Camera',surveillance_device_local:'Surveillance Device',license_plate_reader:'License Plate Reader',known_infrastructure:'Known Infrastructure'};
@@ -160,6 +162,7 @@ async function loadAll(){
 }
 setInterval(async()=>{try{const r=await fetch('/api/detections'),j=await r.json();detectData=j.mapped||[];feedItems=j.feed||[];layers.drone.clearLayers();layers.scan.clearLayers();renderDetections();if(activeTab!=='infrastructure')renderFeed();document.getElementById('stat-detections').textContent=j.total||detectData.length}catch{}},60000);
 loadAll();
+{% endraw %}
 </script>
 </body>
 </html>

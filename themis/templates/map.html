@@ -95,13 +95,13 @@
         <div class="legend-row" onclick="toggleLayer('fusion_center',this)"><div class="legend-dot" style="background:#9b6dd4"></div>Fusion Centers</div>
         <div class="legend-row" onclick="toggleLayer('ice_facility',this)"><div class="legend-dot" style="background:#e05252"></div>ICE Facilities</div>
         <div class="legend-row" onclick="toggleLayer('camera_network',this)"><div class="legend-dot" style="background:#d4a843"></div>Camera Networks</div>
-        <div class="legend-row" onclick="toggleLayer('lpr_network',this)"><div class="legend-dot" style="background:#4a8fd4"></div>License Plate Readers</div>
+        <div class="legend-row" onclick="toggleLayer('lpr_network',this)"><div style="width:11px;height:11px;background:#4a8fd4;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%);flex-shrink:0"></div>License Plate Readers</div>
         <div class="legend-row" onclick="toggleLayer('drone',this)"><div class="legend-dot" style="background:#4abf7e"></div>Drone Detections</div>
         <div class="legend-row" onclick="toggleLayer('scan',this)"><div class="legend-dot" style="background:#c8cdd8"></div>Scan Detections</div>
-        <div class="legend-row" onclick="toggleLayer('ai_surveillance',this)"><div class="legend-dot" style="background:#e8874a"></div>AI Surveillance</div>
-        <div class="legend-row" onclick="toggleLayer('imsi_catcher',this)"><div class="legend-dot" style="background:#e05297"></div>IMSI Catchers</div>
-        <div class="legend-row" onclick="toggleLayer('border_surveillance',this)"><div class="legend-dot" style="background:#4abfbf"></div>Border Surveillance</div>
-        <div class="legend-row" onclick="toggleLayer('drone_signal',this)"><div class="legend-dot" style="background:#c8e04a"></div>Police Drones</div>
+        <div class="legend-row" onclick="toggleLayer('ai_surveillance',this)"><div style="width:11px;height:11px;background:#e8874a;transform:rotate(45deg);flex-shrink:0"></div>AI Surveillance</div>
+        <div class="legend-row" onclick="toggleLayer('imsi_catcher',this)"><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #e05297;flex-shrink:0"></div>IMSI Catchers</div>
+        <div class="legend-row" onclick="toggleLayer('border_surveillance',this)"><div style="width:11px;height:11px;background:#4abfbf;border-radius:2px;flex-shrink:0"></div>Border Surveillance</div>
+        <div class="legend-row" onclick="toggleLayer('drone_signal',this)"><div style="width:11px;height:11px;background:#c8e04a;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);flex-shrink:0"></div>Police Drones</div>
       </div>
       <div id="filter-tabs">
         <div class="tab active" onclick="switchTab('all',this)">All</div>
@@ -142,22 +142,57 @@ const KYR={
   drone_signal:"<b>Know Your Rights — Police Drones</b><br>Police drones require a warrant for targeted surveillance in most states. You have the right to: photograph drones in public airspace; file FOIA for drone deployment logs; know your state drone laws — 17 states require warrants. Do NOT shoot at drones.",
 };
 
-function mkMarker(lat,lng,color,r,pulse){
-  return L.marker([lat,lng],{icon:L.divIcon({className:'',html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${color};opacity:0.85;box-shadow:0 0 ${pulse?8:4}px ${color}"></div>`,iconSize:[r*2,r*2],iconAnchor:[r,r]})});
+const SHAPES={
+  fusion_center:'circle',
+  ice_facility:'circle',
+  camera_network:'circle',
+  lpr_network:'pentagon',
+  ai_surveillance:'diamond',
+  ai_surveillance_local:'diamond',
+  ai_surveillance_port:'diamond',
+  imsi_catcher:'triangle',
+  border_surveillance:'square',
+  drone_signal:'star',
+  drone:'circle',
+  scan:'circle',
+  default:'circle'
+};
+
+function mkShape(shape,size,color,pulse){
+  const s=size*2,glow=`0 0 ${pulse?8:4}px ${color}`;
+  if(shape==='diamond'){
+    return `<div style="width:${s}px;height:${s}px;background:${color};opacity:0.85;transform:rotate(45deg);box-shadow:${glow}"></div>`;
+  } else if(shape==='triangle'){
+    return `<div style="width:0;height:0;border-left:${s/2}px solid transparent;border-right:${s/2}px solid transparent;border-bottom:${s}px solid ${color};opacity:0.85;filter:drop-shadow(0 0 3px ${color})"></div>`;
+  } else if(shape==='square'){
+    return `<div style="width:${s}px;height:${s}px;background:${color};opacity:0.85;border-radius:2px;box-shadow:${glow}"></div>`;
+  } else if(shape==='pentagon'){
+    return `<div style="width:${s}px;height:${s}px;background:${color};opacity:0.85;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%);box-shadow:${glow}"></div>`;
+  } else if(shape==='star'){
+    return `<div style="width:${s}px;height:${s}px;background:${color};opacity:0.85;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);box-shadow:${glow}"></div>`;
+  } else {
+    return `<div style="width:${s}px;height:${s}px;border-radius:50%;background:${color};opacity:0.85;box-shadow:${glow}"></div>`;
+  }
+}
+
+function mkMarker(lat,lng,color,r,pulse,type){
+  const shape=SHAPES[type]||SHAPES.default;
+  const html=mkShape(shape,r,color,pulse);
+  return L.marker([lat,lng],{icon:L.divIcon({className:'',html:html,iconSize:[r*2,r*2],iconAnchor:[r,r]})});
 }
 function renderInfra(){
   Object.values(layers).forEach(g=>g.clearLayers());
   infraData.forEach(r=>{
     if(!r.lat||!r.lng)return;
     const color=INFRA_COLORS[r.type]||'#9b6dd4',layer=layers[r.type]||layers.scan,label=LABELS[r.type]||r.type;
-    mkMarker(r.lat,r.lng,color,7,false).bindPopup(`<div class="popup-type" style="color:${color}">${label}</div><div class="popup-name">${r.name}</div><div class="popup-detail">${r.description||''}</div><div class="popup-source">📍 ${r.city}, ${r.state}<br>⚖ ${r.source||'Public record'}</div>${KYR[r.type]?`<div class="popup-kyr" style="margin-top:8px;padding:8px;background:rgba(74,143,212,0.15);border-left:3px solid #4a8fd4;font-size:10px;line-height:1.5;color:#c8cdd8">${KYR[r.type]}</div>`:''}`,{maxWidth:300}).addTo(layer);
+    mkMarker(r.lat,r.lng,color,7,false,r.type).bindPopup(`<div class="popup-type" style="color:${color}">${label}</div><div class="popup-name">${r.name}</div><div class="popup-detail">${r.description||''}</div><div class="popup-source">📍 ${r.city}, ${r.state}<br>⚖ ${r.source||'Public record'}</div>${KYR[r.type]?`<div class="popup-kyr" style="margin-top:8px;padding:8px;background:rgba(74,143,212,0.15);border-left:3px solid #4a8fd4;font-size:10px;line-height:1.5;color:#c8cdd8">${KYR[r.type]}</div>`:''}`,{maxWidth:300}).addTo(layer);
   });
 }
 function renderDetections(){
   detectData.forEach(d=>{
     if(!d.lat||!d.lng)return;
     const color=DET_COLORS[d.type]||DET_COLORS.default,isDrone=d.type&&(d.type.includes('drone')||d.type.includes('robot')),layer=isDrone?layers.drone:layers.scan,label=LABELS[d.type]||d.type;
-    mkMarker(d.lat,d.lng,color,isDrone?6:5,isDrone).bindPopup(`<div class="popup-type" style="color:${color}">${label}</div><div class="popup-detail">${d.detail||''}</div><div class="popup-source">🕐 ${fmt(d.time)}<br>📡 ${d.source||d.lead||'Themis'}</div>`,{maxWidth:260}).addTo(layer);
+    mkMarker(d.lat,d.lng,color,isDrone?6:5,isDrone,d.type).bindPopup(`<div class="popup-type" style="color:${color}">${label}</div><div class="popup-detail">${d.detail||''}</div><div class="popup-source">🕐 ${fmt(d.time)}<br>📡 ${d.source||d.lead||'Themis'}</div>`,{maxWidth:260}).addTo(layer);
   });
 }
 function renderFeed(){
@@ -200,13 +235,13 @@ loadAll();
     <div class="d-legend-row"><div class="d-dot" style="background:#9b6dd4"></div>Fusion Centers</div>
     <div class="d-legend-row"><div class="d-dot" style="background:#e05252"></div>ICE Facilities</div>
     <div class="d-legend-row"><div class="d-dot" style="background:#d4a843"></div>Camera Networks</div>
-    <div class="d-legend-row"><div class="d-dot" style="background:#4a8fd4"></div>License Plate Readers</div>
+    <div class="d-legend-row"><div style="width:11px;height:11px;background:#4a8fd4;clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%);flex-shrink:0"></div>License Plate Readers</div>
     <div class="d-legend-row"><div class="d-dot" style="background:#4abf7e"></div>Drone Detections</div>
     <div class="d-legend-row"><div class="d-dot" style="background:#c8cdd8"></div>Scan Detections</div>
-    <div class="d-legend-row"><div class="d-dot" style="background:#e8874a"></div>AI Surveillance</div>
-    <div class="d-legend-row"><div class="d-dot" style="background:#e05297"></div>IMSI Catchers</div>
-    <div class="d-legend-row"><div class="d-dot" style="background:#4abfbf"></div>Border Surveillance</div>
-    <div class="d-legend-row"><div class="d-dot" style="background:#c8e04a"></div>Police Drones</div>
+    <div class="d-legend-row"><div style="width:11px;height:11px;background:#e8874a;transform:rotate(45deg);flex-shrink:0"></div>AI Surveillance</div>
+    <div class="d-legend-row"><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #e05297;flex-shrink:0"></div>IMSI Catchers</div>
+    <div class="d-legend-row"><div style="width:11px;height:11px;background:#4abfbf;border-radius:2px;flex-shrink:0"></div>Border Surveillance</div>
+    <div class="d-legend-row"><div style="width:11px;height:11px;background:#c8e04a;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);flex-shrink:0"></div>Police Drones</div>
   </div>
   <div class="d-section">
     <h3>ICE Facilities</h3>

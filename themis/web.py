@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request, send_from_directory
 from datetime import datetime, timezone
 import os
 
@@ -15,7 +15,7 @@ def create_app():
 
 @app.route("/")
 def index():
-    return render_template("map.html")
+    return send_from_directory('templates', 'map.html')
 
 @app.route("/api/detections")
 def api_detections():

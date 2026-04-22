@@ -243,7 +243,7 @@ async function loadAll(){
     const[ir,dr]=await Promise.all([fetch('/api/infrastructure'),fetch('/api/detections')]);
     const ij=await ir.json(),dj=await dr.json();
     infraData=ij.records||[];detectData=dj.mapped||[];feedItems=dj.feed||[];
-    renderInfra();renderDetections();renderFeed();populateDrawer(infraData);
+    renderInfra();renderDetections();renderFeed();
     document.getElementById('stat-detections').textContent=dj.total||detectData.length;
     document.getElementById('stat-infra').textContent=infraData.length;
     document.getElementById('stat-ice').textContent=infraData.filter(r=>r.type==='ice_facility').length;
@@ -271,40 +271,14 @@ loadAll();
     <div class="d-legend-row"><div style="width:11px;height:11px;background:#4abfbf;border-radius:2px;flex-shrink:0"></div>Border Surveillance</div>
     <div class="d-legend-row"><div style="width:11px;height:11px;background:#c8e04a;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);flex-shrink:0"></div>Police Drones</div>
   </div>
-  <div class="d-section">
-    <h3>ICE Facilities</h3>
-    <div id="drawer-ice"></div>
-  </div>
-  <div class="d-section">
-    <h3>Fusion Centers</h3>
-    <div id="drawer-fusion"></div>
-  </div>
-  <div style="font-size:10px;color:var(--muted);line-height:1.6;padding-top:8px;border-top:1px solid var(--border)">
-    <a href="https://buymeacoffee.com/sentinel.commons" target="_blank" style="display:inline-block;background:#4a7fcb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:12px;letter-spacing:1px">☕ SUPPORT THEMIS</a><br><br>All data publicly sourced. Donations are not tax deductible and go directly to The Commons community redistribution fund.
-    <br><br>Project Themis · The watch does not stop.
+  <div style="font-size:10px;color:var(--muted);line-height:1.6;padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
+    <a href="https://buymeacoffee.com/sentinel.commons" target="_blank" style="display:inline-block;background:#4a7fcb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:12px;letter-spacing:1px">☕ SUPPORT THEMIS</a><br><br>All data publicly sourced. Donations are not tax deductible and go directly to The Commons community redistribution fund.<br><br>Project Themis · The watch does not stop.
   </div>
 </div>
 <script>
 function toggleDrawer(){document.getElementById('drawer').classList.toggle('open')}
 document.getElementById('drawer').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')});
-function populateDrawer(infraData){
-  const ice=document.getElementById('drawer-ice');
-  const fusion=document.getElementById('drawer-fusion');
-  infraData.filter(r=>r.type==='ice_facility').forEach(r=>{
-    const d=document.createElement('div');
-    d.className='d-item';
-    d.innerHTML=`<div class="d-item-name">${r.name}</div><div class="d-item-meta">📍 ${r.city}, ${r.state}</div>`;
-    d.onclick=()=>{toggleDrawer();focusItem(r.lat,r.lng)};
-    ice.appendChild(d);
-  });
-  infraData.filter(r=>r.type==='fusion_center').forEach(r=>{
-    const d=document.createElement('div');
-    d.className='d-item';
-    d.innerHTML=`<div class="d-item-name">${r.name}</div><div class="d-item-meta">📍 ${r.city}, ${r.state}</div>`;
-    d.onclick=()=>{toggleDrawer();focusItem(r.lat,r.lng)};
-    fusion.appendChild(d);
-  });
-}
+
 </script>
 
 

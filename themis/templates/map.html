@@ -444,59 +444,7 @@ function updateHotspotBanner(hotspots) {
 // ── Proximity Alert ───────────────────────────────────────────────────────────
 let proximityWatchId = null;
 
-function initProximityAlert() {
-  const btn = document.getElementById('btn-proximity');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    if (proximityWatchId !== null) {
-      navigator.geolocation.clearWatch(proximityWatchId);
-      proximityWatchId = null;
-      btn.textContent = '📍 Enable Proximity Alerts';
-      btn.classList.remove('active');
-      const panel = document.getElementById('proximity-panel');
-      if (panel) panel.style.display = 'none';
-      return;
-    }
-    if (!navigator.geolocation) { showToast('Geolocation not supported.'); return; }
-    btn.textContent = '📍 Locating…';
-    proximityWatchId = navigator.geolocation.watchPosition(async pos => {
-      btn.textContent = '📍 Alerts ON';
-      btn.classList.add('active');
-      const res  = await fetch('/api/proximity?lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude + '&radius=0.5');
-      const data = await res.json();
-      const panel = document.getElementById('proximity-panel');
-      if (!panel) return;
-      if (!data.alerts || data.alerts.length === 0) { panel.style.display = 'none'; return; }
-      panel.style.display = 'block';
-      panel.innerHTML = '<div style="font-weight:bold;color:#fb923c;margin-bottom:8px">⚠ ' + data.alerts.length + ' surveillance point(s) within 0.5mi</div>' +
-        data.alerts.slice(0,5).map(a =>
-          '<div style="display:flex;justify-content:space-between;font-size:0.78em;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)">' +
-          '<span>' + a.name + '</span><span style="color:#fb923c;font-weight:bold">' + a.distance_ft + 'ft</span></div>'
-        ).join('');
-    }, () => {
-      showToast('Location access denied.');
-      proximityWatchId = null;
-      btn.textContent = '📍 Enable Proximity Alerts';
-    }, {enableHighAccuracy:true, maximumAge:30000, timeout:10000});
-  });
-}
 
-function showToast(msg) {
-  let t = document.getElementById('themis-toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'themis-toast';
-    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#111;color:#fff;padding:10px 20px;border-radius:20px;font-size:0.85em;opacity:0;transition:all 0.3s ease;z-index:9999';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
-  t.style.transform = 'translateX(-50%) translateY(0)';
-  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(80px)'; }, 3500);
-}
-
-loadThreats();
-initProximityAlert();
 
 </script>
 

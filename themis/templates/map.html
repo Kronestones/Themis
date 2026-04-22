@@ -89,8 +89,32 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+
+<style>
+#hotspot-banner {
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(30,30,30,0.92);color:#fff;padding:6px 16px;
+  border-radius:20px;font-size:0.78em;z-index:1000;display:none;white-space:nowrap;
+}
+#proximity-panel {
+  position:absolute;bottom:40px;left:10px;z-index:1000;
+  background:rgba(20,20,20,0.95);color:#fff;border-radius:10px;
+  padding:12px 16px;max-width:280px;display:none;
+  border:1px solid rgba(251,146,60,0.6);
+}
+#btn-proximity {
+  background:rgba(30,30,30,0.85);color:#fff;border:1px solid #555;
+  padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;
+  margin-top:10px;width:100%;
+}
+#btn-proximity.active { border-color:#fb923c;color:#fb923c; }
+</style>
 </head>
 <body>
+
+<div id="hotspot-banner"></div>
+<div id="proximity-panel"></div>
+
 <div id="loading"><div class="loading-logo">THE<span>MIS</span></div><div class="loading-msg">THE WATCH IS LOADING...</div></div>
 <div id="shell">
   <div id="header">
@@ -372,6 +396,128 @@ document.addEventListener('click', e => {
     searchResults.classList.remove('open');
   }
 });
+
+
+// ── Threat Halo Layer ────────────────────────────────────────────────────────
+let threatLayer = L.layerGroup().addTo(map);
+let threatData  = {};
+
+async function loadThreats() {
+  try {
+    const res  = await fetch('/api/threats');
+    const data = await res.json();
+    threatData = data.scored || {};
+    drawThreatHalos(data);
+    updateHotspotBanner(data.hotspots || []);
+  } catch(e) {
+    console.warn('Threat layer unavailable:', e);
+  }
+}
+
+function drawThreatHalos(data) {
+  threatLayer.clearLayers();
+  const scored = data.scored || {};
+  const seen   = new Set();
+  Object.values(scored).forEach(s => {
+    if (s.threat === 'NOMINAL') return;
+    const rec = window._recordsById && window._recordsById[s.id];
+    if (!rec || !rec.lat || !rec.lng) return;
+    const key = parseFloat(rec.lat).toFixed(3) + ',' + parseFloat(rec.lng).toFixed(3);
+    if (seen.has(key)) return;
+    seen.add(key);
+    const radii = { ELEVATED: 300, COORDINATED: 600, SATURATION: 900 };
+    L.circle([rec.lat, rec.lng], {
+      radius:      radii[s.threat] || 300,
+      color:       s.threat_color,
+      fillColor:   s.threat_color,
+      fillOpacity: 0.08,
+      opacity:     0.5,
+      weight:      2,
+    })
+    .bindTooltip('<b>' + s.threat_label + ' Threat Zone</b><br>' + s.reasons.join('<br>'), {sticky: true})
+    .addTo(threatLayer);
+  });
+}
+
+function updateHotspotBanner(hotspots) {
+  const banner = document.getElementById('hotspot-banner');
+  if (!banner) return;
+  if (hotspots.length === 0) { banner.style.display = 'none'; return; }
+  const top = hotspots.slice(0,3).map(h =>
+    '<span style="background:' + (h.threat_color||'#fb923c') + ';color:#fff;padding:2px 8px;border-radius:10px;margin:0 3px;font-weight:bold">' + h.city + '</span>'
+  ).join('');
+  banner.innerHTML = '⚠ Hotspots: ' + top;
+  banner.style.display = 'block';
+}
+
+// ── Proximity Alert ───────────────────────────────────────────────────────────
+let proximityWatchId = null;
+
+function initProximityAlert() {
+  const btn = document.getElementById('btn-proximity');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (proximityWatchId !== null) {
+      navigator.geolocation.clearWatch(proximityWatchId);
+      proximityWatchId = null;
+      btn.textContent = '📍 Enable Proximity Alerts';
+      btn.classList.remove('active');
+      const panel = document.getElementById('proximity-panel');
+      if (panel) panel.style.display = 'none';
+      return;
+    }
+    if (!navigator.geolocation) { showToast('Geolocation not supported.'); return; }
+    btn.textContent = '📍 Locating…';
+    proximityWatchId = navigator.geolocation.watchPosition(async pos => {
+      btn.textContent = '📍 Alerts ON';
+      btn.classList.add('active');
+      const res  = await fetch('/api/proximity?lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude + '&radius=0.5');
+      const data = await res.json();
+      const panel = document.getElementById('proximity-panel');
+      if (!panel) return;
+      if (!data.alerts || data.alerts.length === 0) { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      panel.innerHTML = '<div style="font-weight:bold;color:#fb923c;margin-bottom:8px">⚠ ' + data.alerts.length + ' surveillance point(s) within 0.5mi</div>' +
+        data.alerts.slice(0,5).map(a =>
+          '<div style="display:flex;justify-content:space-between;font-size:0.78em;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)">' +
+          '<span>' + a.name + '</span><span style="color:#fb923c;font-weight:bold">' + a.distance_ft + 'ft</span></div>'
+        ).join('');
+    }, () => {
+      showToast('Location access denied.');
+      proximityWatchId = null;
+      btn.textContent = '📍 Enable Proximity Alerts';
+    }, {enableHighAccuracy:true, maximumAge:30000, timeout:10000});
+  });
+}
+
+function showToast(msg) {
+  let t = document.getElementById('themis-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'themis-toast';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#111;color:#fff;padding:10px 20px;border-radius:20px;font-size:0.85em;opacity:0;transition:all 0.3s ease;z-index:9999';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(80px)'; }, 3500);
+}
+
+loadThreats();
+initProximityAlert();
+
+</script>
+
+<script>
+// Add proximity button to drawer if it exists
+const drawer = document.querySelector('.drawer') || document.querySelector('#drawer') || document.querySelector('.legend');
+if (drawer) {
+  const btn = document.createElement('button');
+  btn.id = 'btn-proximity';
+  btn.textContent = '📍 Enable Proximity Alerts';
+  drawer.appendChild(btn);
+}
 </script>
 
 </body>

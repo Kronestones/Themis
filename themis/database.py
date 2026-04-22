@@ -251,3 +251,27 @@ def _seed_infrastructure(engine):
         print(f"[DB] Seed error: {e}")
     finally:
         session.close()
+
+
+def get_all_records_as_dicts():
+    from themis.database import db
+    rows = db.session.execute(db.text("SELECT id, name, type, city, state, lat, lng, description, source, verified, foia_url, legal_status, legal_notes, threat_level FROM infrastructure")).fetchall()
+    return [
+        {
+            "id":           r.id,
+            "name":         r.name,
+            "category":     r.type,
+            "lat":          float(r.lat) if r.lat else None,
+            "lon":          float(r.lng) if r.lng else None,
+            "city":         r.city,
+            "state":        r.state,
+            "description":  r.description,
+            "source":       r.source,
+            "foia_url":     r.foia_url,
+            "legal_status": r.legal_status,
+            "legal_notes":  r.legal_notes,
+            "threat_level": r.threat_level or 0,
+        }
+        for r in rows
+        if r.lat and r.lng
+    ]

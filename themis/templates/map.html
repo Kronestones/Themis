@@ -173,8 +173,7 @@ const map=L.map('map',{center:[39.5,-98.35],zoom:4});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
 let infraData=[],detectData=[],feedItems=[],activeTab='all',hiddenLayers=new Set();
 function mkCluster(color){
-  return L.markerClusterGroup({zoomToBoundsOnClick:true,spiderfyOnMaxZoom:true,showCoverageOnHover:false,disableClusteringAtZoom:16,maxClusterRadius:60,
-    maxClusterRadius:40,
+  return L.markerClusterGroup({zoomToBoundsOnClick:true,spiderfyOnMaxZoom:true,spiderfyDistanceMultiplier:2,showCoverageOnHover:false,disableClusteringAtZoom:13,maxClusterRadius:40,
     iconCreateFunction:function(cluster){
       const c=cluster.getChildCount();
       return L.divIcon({html:`<div style="background:${color};color:#fff;border-radius:50%;width:${c>99?36:c>9?30:24}px;height:${c>99?36:c>9?30:24}px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;opacity:0.9;box-shadow:0 0 8px ${color}">${c}</div>`,className:''});

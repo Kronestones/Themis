@@ -233,6 +233,8 @@ function mkMarker(lat,lng,color,r,pulse,type){
   return L.marker([lat,lng],{icon:L.divIcon({className:'',html:html,iconSize:[r*2,r*2],iconAnchor:[r,r]})});
 }
 function renderInfra(){
+  window._recordsById={};
+  infraData.forEach(r=>{ window._recordsById[r.id]=r; });
   Object.values(layers).forEach(g=>g.clearLayers());
   infraData.forEach(r=>{
     if(!r.lat||!r.lng)return;

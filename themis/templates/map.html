@@ -149,7 +149,7 @@ const map=L.map('map',{center:[39.5,-98.35],zoom:4});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
 let infraData=[],detectData=[],feedItems=[],activeTab='all',hiddenLayers=new Set();
 function mkCluster(color){
-  return L.markerClusterGroup({
+  return L.markerClusterGroup({zoomToBoundsOnClick:true,spiderfyOnMaxZoom:true,showCoverageOnHover:false,
     maxClusterRadius:40,
     iconCreateFunction:function(cluster){
       const c=cluster.getChildCount();

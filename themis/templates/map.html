@@ -58,7 +58,14 @@
     .popup-detail{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:6px}
     .popup-source{font-size:10px;color:var(--muted);opacity:0.7;border-top:1px solid var(--border);padding-top:6px;margin-top:6px}
     @media(max-width:640px){#sidebar,#stats-bar{display:none}}
-#menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:1000;background:var(--accent);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.5)}
+#search-box{position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--surface);border:1px solid var(--accent);border-radius:24px;padding:8px 16px;display:flex;align-items:center;gap:8px;width:calc(100% - 32px);max-width:400px;box-shadow:0 4px 16px rgba(0,0,0,0.5)}
+    #search-input{background:none;border:none;outline:none;color:var(--text);font-family:"Courier New",monospace;font-size:12px;flex:1;letter-spacing:1px}
+    #search-input::placeholder{color:var(--muted)}
+    #search-results{position:fixed;top:108px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--surface);border:1px solid var(--border);border-radius:8px;width:calc(100% - 32px);max-width:400px;max-height:200px;overflow-y:auto;display:none}
+    #search-results.open{display:block}
+    .search-result-item{padding:10px 16px;font-size:11px;color:var(--text);border-bottom:1px solid var(--border);cursor:pointer;letter-spacing:0.5px}
+    .search-result-item:hover{background:rgba(74,143,212,0.15)}
+    #menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:1000;background:var(--accent);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.5)}
 #drawer{display:none;position:fixed;bottom:0;left:0;right:0;z-index:999;background:var(--surface);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;max-height:70vh;overflow-y:auto;padding:16px;transform:translateY(100%);transition:transform 0.3s ease}
 #drawer.open{transform:translateY(0)}
 #drawer-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
@@ -70,8 +77,18 @@
 .d-item:hover{color:#fff}
 .d-item-name{font-size:13px;color:var(--text);margin-bottom:3px}
 .d-item-meta{font-size:11px;color:var(--muted)}
-@media(max-width:640px){#menu-btn{display:flex;align-items:center;justify-content:center}#drawer{display:block}}
+@media(max-width:640px){#search-box{position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--surface);border:1px solid var(--accent);border-radius:24px;padding:8px 16px;display:flex;align-items:center;gap:8px;width:calc(100% - 32px);max-width:400px;box-shadow:0 4px 16px rgba(0,0,0,0.5)}
+    #search-input{background:none;border:none;outline:none;color:var(--text);font-family:"Courier New",monospace;font-size:12px;flex:1;letter-spacing:1px}
+    #search-input::placeholder{color:var(--muted)}
+    #search-results{position:fixed;top:108px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--surface);border:1px solid var(--border);border-radius:8px;width:calc(100% - 32px);max-width:400px;max-height:200px;overflow-y:auto;display:none}
+    #search-results.open{display:block}
+    .search-result-item{padding:10px 16px;font-size:11px;color:var(--text);border-bottom:1px solid var(--border);cursor:pointer;letter-spacing:0.5px}
+    .search-result-item:hover{background:rgba(74,143,212,0.15)}
+    #menu-btn{display:flex;align-items:center;justify-content:center}#drawer{display:block}}
   </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 </head>
 <body>
 <div id="loading"><div class="loading-logo">THE<span>MIS</span></div><div class="loading-msg">THE WATCH IS LOADING...</div></div>
@@ -87,6 +104,8 @@
       <div class="stat"><div class="stat-num" id="stat-fusion">-</div><div class="stat-label">Fusion Centers</div></div>
     </div>
   </div>
+  <div id="search-box"><span style="color:var(--muted);font-size:12px">🔍</span><input id="search-input" type="text" placeholder="SEARCH BY CITY, STATE OR ZIP..." autocomplete="off"><span id="search-clear" style="color:var(--muted);cursor:pointer;display:none">✕</span></div>
+  <div id="search-results"></div>
   <div id="body">
     <div id="map"></div>
     <div id="sidebar">
@@ -129,7 +148,16 @@ const LABELS={fusion_center:'Fusion Center',ice_facility:'ICE Facility',camera_n
 const map=L.map('map',{center:[39.5,-98.35],zoom:4});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
 let infraData=[],detectData=[],feedItems=[],activeTab='all',hiddenLayers=new Set();
-const layers={fusion_center:L.layerGroup().addTo(map),ice_facility:L.layerGroup().addTo(map),camera_network:L.layerGroup().addTo(map),lpr_network:L.layerGroup().addTo(map),ai_surveillance:L.layerGroup().addTo(map),imsi_catcher:L.layerGroup().addTo(map),border_surveillance:L.layerGroup().addTo(map),drone_signal:L.layerGroup().addTo(map),drone:L.layerGroup().addTo(map),scan:L.layerGroup().addTo(map)};
+function mkCluster(color){
+  return L.markerClusterGroup({
+    maxClusterRadius:40,
+    iconCreateFunction:function(cluster){
+      const c=cluster.getChildCount();
+      return L.divIcon({html:`<div style="background:${color};color:#fff;border-radius:50%;width:${c>99?36:c>9?30:24}px;height:${c>99?36:c>9?30:24}px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;opacity:0.9;box-shadow:0 0 8px ${color}">${c}</div>`,className:''});
+    }
+  }).addTo(map);
+}
+const layers={fusion_center:mkCluster('#9b6dd4'),ice_facility:mkCluster('#e05252'),camera_network:mkCluster('#d4a843'),lpr_network:mkCluster('#4a8fd4'),ai_surveillance:mkCluster('#e8874a'),imsi_catcher:mkCluster('#e05297'),border_surveillance:mkCluster('#4abfbf'),drone_signal:mkCluster('#c8e04a'),drone:mkCluster('#4abf7e'),scan:mkCluster('#c8cdd8')};
 
 const KYR={
   fusion_center:"<b>Know Your Rights — Fusion Center</b><br>Fusion centers collect and share data on citizens without warrants. You have the right to: file a FOIA request for records held about you (5 USC 552); request your FBI file; opt out of many data sharing programs. Contact your state ACLU for center-specific guidance.",
@@ -306,6 +334,70 @@ function dismissSplash(){
 if(typeof sessionStorage!=='undefined'){
   try{if(sessionStorage.getItem('themis_splash')==='seen')document.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('splash');if(s)s.remove()})}catch(e){}
 }
+</script>
+
+
+<script>
+// PWA Service Worker
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+  });
+}
+
+// Search functionality
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+const searchClear = document.getElementById('search-clear');
+
+function searchLocations(query){
+  if(!query || query.length < 2){ searchResults.classList.remove('open'); return; }
+  query = query.toLowerCase().trim();
+  const matches = infraData.filter(r => {
+    return (r.name && r.name.toLowerCase().includes(query)) ||
+           (r.city && r.city.toLowerCase().includes(query)) ||
+           (r.state && r.state.toLowerCase().includes(query)) ||
+           (r.description && r.description.toLowerCase().includes(query)) ||
+           (r.type && r.type.replace(/_/g,' ').includes(query));
+  }).slice(0, 15);
+
+  if(matches.length === 0){
+    searchResults.innerHTML = '<div class="search-result-item" style="color:var(--muted)">No results found</div>';
+  } else {
+    searchResults.innerHTML = matches.map(r =>
+      `<div class="search-result-item" onclick="flyTo(${r.lat},${r.lng},'${r.name.replace(/'/g,"\'")}')">
+        <span style="color:${INFRA_COLORS[r.type]||'#9b6dd4'}">${LABELS[r.type]||r.type}</span><br>
+        ${r.name}<br>
+        <span style="color:var(--muted)">${r.city||''}, ${r.state||''}</span>
+      </div>`
+    ).join('');
+  }
+  searchResults.classList.add('open');
+}
+
+function flyTo(lat, lng, name){
+  map.flyTo([lat, lng], 13, {duration: 1.5});
+  searchResults.classList.remove('open');
+  searchInput.value = name;
+  searchClear.style.display = 'inline';
+}
+
+searchInput.addEventListener('input', e => {
+  searchClear.style.display = e.target.value ? 'inline' : 'none';
+  searchLocations(e.target.value);
+});
+
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchClear.style.display = 'none';
+  searchResults.classList.remove('open');
+});
+
+document.addEventListener('click', e => {
+  if(!e.target.closest('#search-box') && !e.target.closest('#search-results')){
+    searchResults.classList.remove('open');
+  }
+});
 </script>
 
 </body>

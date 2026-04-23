@@ -151,6 +151,9 @@
         <div class="legend-row" onclick="toggleLayer('imsi_catcher',this)"><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #e05297;flex-shrink:0"></div>IMSI Catchers</div>
         <div class="legend-row" onclick="toggleLayer('border_surveillance',this)"><div style="width:11px;height:11px;background:#4abfbf;border-radius:2px;flex-shrink:0"></div>Border Surveillance</div>
         <div class="legend-row" onclick="toggleLayer('drone_signal',this)"><div style="width:11px;height:11px;background:#c8e04a;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);flex-shrink:0"></div>Police Drones</div>
+        <div class="legend-row" onclick="toggleLayer('surveillance_camera',this)"><div class="legend-dot" style="background:#d4a843"></div>Surveillance Cameras</div>
+        <div class="legend-row" onclick="toggleLayer('robot_detection',this)"><div style="width:11px;height:11px;background:#ff6b6b;border-radius:2px;flex-shrink:0"></div>Autonomous Robots</div>
+        <div class="legend-row" onclick="toggleLayer('drone_bluetooth',this)"><div class="legend-dot" style="background:#4abf7e"></div>Drone (Bluetooth)</div>
       </div>
       <div id="filter-tabs">
         <div class="tab active" onclick="switchTab('all',this)">All</div>
@@ -172,14 +175,14 @@
   </div>
 </div>
 <script>
-const INFRA_COLORS={fusion_center:'#9b6dd4',ice_facility:'#e05252',camera_network:'#d4a843',lpr_network:'#4a8fd4',ai_surveillance:'#e8874a',ai_surveillance_local:'#e8874a',ai_surveillance_port:'#e8874a',imsi_catcher:'#e05297',border_surveillance:'#4abfbf',drone_signal:'#c8e04a'};
+const INFRA_COLORS={fusion_center:'#9b6dd4',ice_facility:'#e05252',camera_network:'#d4a843',lpr_network:'#4a8fd4',ai_surveillance:'#e8874a',ai_surveillance_local:'#e8874a',ai_surveillance_port:'#e8874a',imsi_catcher:'#e05297',border_surveillance:'#4abfbf',drone_signal:'#c8e04a',surveillance_camera:'#d4a843',robot_detection:'#ff6b6b',drone_bluetooth:'#4abf7e'};
 const DET_COLORS={drone_signal:'#4abf7e',drone_bluetooth:'#4abf7e',robot_detection:'#4abf7e',imsi_catcher:'#e05252',facial_recognition:'#e05252',surveillance_camera:'#d4a843',surveillance_device_local:'#d4a843',license_plate_reader:'#4a8fd4',known_infrastructure:'#9b6dd4',default:'#c8cdd8'};
-const LABELS={fusion_center:'Fusion Center',ice_facility:'ICE Facility',camera_network:'Camera Network',lpr_network:'LPR Network',drone_signal:'Police Drone Program',drone_bluetooth:'Drone (BLE)',robot_detection:'Autonomous Robot',imsi_catcher:'IMSI Catcher / Stingray',facial_recognition:'Facial Recognition',surveillance_camera:'Surveillance Camera',surveillance_device_local:'Surveillance Device',license_plate_reader:'License Plate Reader',known_infrastructure:'Known Infrastructure',ai_surveillance:'AI Surveillance',ai_surveillance_local:'AI Surveillance (Local)',ai_surveillance_port:'AI Surveillance Port',border_surveillance:'Border Surveillance'};
+const LABELS={fusion_center:'Fusion Center',ice_facility:'ICE Facility',camera_network:'Camera Network',lpr_network:'LPR Network',drone_signal:'Police Drone Program',surveillance_camera:'Surveillance Camera',robot_detection:'Autonomous Robot',drone_bluetooth:'Drone (Bluetooth)',drone_bluetooth:'Drone (BLE)',robot_detection:'Autonomous Robot',imsi_catcher:'IMSI Catcher / Stingray',facial_recognition:'Facial Recognition',surveillance_camera:'Surveillance Camera',surveillance_device_local:'Surveillance Device',license_plate_reader:'License Plate Reader',known_infrastructure:'Known Infrastructure',ai_surveillance:'AI Surveillance',ai_surveillance_local:'AI Surveillance (Local)',ai_surveillance_port:'AI Surveillance Port',border_surveillance:'Border Surveillance'};
 const map=L.map('map',{center:[39.5,-98.35],zoom:4});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
 let infraData=[],detectData=[],feedItems=[],activeTab='all',hiddenLayers=new Set();
 function mkCluster(color){ return L.layerGroup().addTo(map); }
-const layers={fusion_center:mkCluster('#9b6dd4'),ice_facility:mkCluster('#e05252'),camera_network:mkCluster('#d4a843'),lpr_network:mkCluster('#4a8fd4'),ai_surveillance:mkCluster('#e8874a'),imsi_catcher:mkCluster('#e05297'),border_surveillance:mkCluster('#4abfbf'),drone_signal:mkCluster('#c8e04a'),drone:mkCluster('#4abf7e'),scan:mkCluster('#c8cdd8')};
+const layers={fusion_center:mkCluster('#9b6dd4'),ice_facility:mkCluster('#e05252'),camera_network:mkCluster('#d4a843'),lpr_network:mkCluster('#4a8fd4'),ai_surveillance:mkCluster('#e8874a'),imsi_catcher:mkCluster('#e05297'),border_surveillance:mkCluster('#4abfbf'),drone_signal:mkCluster('#c8e04a'),drone:mkCluster('#4abf7e'),scan:mkCluster('#c8cdd8'),surveillance_camera:mkCluster('#d4a843'),robot_detection:mkCluster('#ff6b6b'),drone_bluetooth:mkCluster('#4abf7e')};
 
 const KYR={
   fusion_center:"<b>Know Your Rights — Fusion Center</b><br>Fusion centers collect and share data on citizens without warrants. You have the right to: file a FOIA request for records held about you (5 USC 552); request your FBI file; opt out of many data sharing programs. Contact your state ACLU for center-specific guidance.",
@@ -300,6 +303,9 @@ loadAll();
     <div class="d-legend-row"><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #e05297;flex-shrink:0"></div>IMSI Catchers</div>
     <div class="d-legend-row"><div style="width:11px;height:11px;background:#4abfbf;border-radius:2px;flex-shrink:0"></div>Border Surveillance</div>
     <div class="d-legend-row"><div style="width:11px;height:11px;background:#c8e04a;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);flex-shrink:0"></div>Police Drones</div>
+    <div class="d-legend-row"><div class="d-dot" style="background:#d4a843"></div>Surveillance Cameras</div>
+    <div class="d-legend-row"><div style="width:11px;height:11px;background:#ff6b6b;border-radius:2px;flex-shrink:0"></div>Autonomous Robots</div>
+    <div class="d-legend-row"><div class="d-dot" style="background:#4abf7e"></div>Drone (Bluetooth)</div>
   </div>
   <div style="font-size:10px;color:var(--muted);line-height:1.6;padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
     <a href="https://buymeacoffee.com/sentinel.commons" target="_blank" style="display:inline-block;background:#4a7fcb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:12px;letter-spacing:1px">☕ SUPPORT THEMIS</a><br><br>All data publicly sourced. Donations are not tax deductible and go directly to The Commons community redistribution fund.<br><br>Project Themis · The watch does not stop.

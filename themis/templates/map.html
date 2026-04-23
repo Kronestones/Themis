@@ -101,7 +101,8 @@
   background:rgba(30,30,30,0.92);color:#fff;padding:6px 16px;
   border-radius:20px;font-size:0.78em;z-index:1000;display:none;white-space:nowrap;
 }
-#proximity-panel {
+/* removed */
+#proximity-panel-disabled {
   position:absolute;bottom:40px;left:10px;z-index:1000;
   background:rgba(20,20,20,0.95);color:#fff;border-radius:10px;
   padding:12px 16px;max-width:280px;display:none;
@@ -449,23 +450,9 @@ function updateHotspotBanner(hotspots) {
   banner.style.display = 'block';
 }
 
-// ── Proximity Alert ───────────────────────────────────────────────────────────
-let proximityWatchId = null;
-
-
-
 </script>
 
-<script>
-// Add proximity button to drawer if it exists
-const drawer = document.querySelector('.drawer') || document.querySelector('#drawer') || document.querySelector('.legend');
-if (drawer) {
-  const btn = document.createElement('button');
-  btn.id = 'btn-proximity';
-  btn.textContent = '📍 Enable Proximity Alerts';
-  drawer.appendChild(btn);
-}
-</script>
+
 
 </body>
 </html>

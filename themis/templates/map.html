@@ -93,6 +93,14 @@
     .search-result-item{padding:10px 16px;font-size:11px;color:var(--text);border-bottom:1px solid var(--border);cursor:pointer;letter-spacing:0.5px}
     .search-result-item:hover{background:rgba(74,143,212,0.15)}
     #menu-btn{display:flex;align-items:center;justify-content:center}#drawer{display:block}}
+  
+    .threat-halo { pointer-events: none; }
+    #hotspot-banner { position:fixed;top:100px;left:50%;transform:translateX(-50%);
+      z-index:1001;background:#1a0a0a;border:1px solid #f87171;border-radius:8px;
+      padding:8px 16px;font-size:11px;color:#f87171;font-family:'Courier New',monospace;
+      letter-spacing:1px;display:none;max-width:calc(100% - 32px);text-align:center; }
+    #hotspot-banner.visible { display:block; }
+
   </style>
       
 <style>
@@ -114,7 +122,15 @@
   margin-top:10px;width:100%;
 }
 #btn-proximity.active { border-color:#fb923c;color:#fb923c; }
-</style>
+
+    .threat-halo { pointer-events: none; }
+    #hotspot-banner { position:fixed;top:100px;left:50%;transform:translateX(-50%);
+      z-index:1001;background:#1a0a0a;border:1px solid #f87171;border-radius:8px;
+      padding:8px 16px;font-size:11px;color:#f87171;font-family:'Courier New',monospace;
+      letter-spacing:1px;display:none;max-width:calc(100% - 32px);text-align:center; }
+    #hotspot-banner.visible { display:block; }
+
+  </style>
 </head>
 <body>
 
@@ -136,6 +152,7 @@
   </div>
   <div id="search-box"><span style="color:var(--muted);font-size:12px">🔍</span><input id="search-input" type="text" placeholder="SEARCH BY CITY, STATE OR ZIP..." autocomplete="off"><span id="search-clear" style="color:var(--muted);cursor:pointer;display:none">✕</span></div>
   <div id="search-results"></div>
+  <div id="hotspot-banner"></div>
   <div id="body">
     <div id="map"></div>
     <div id="sidebar">
@@ -275,7 +292,7 @@ async function loadAll(){
   try{
     const[ir,dr]=await Promise.all([fetch('/api/infrastructure'),fetch('/api/detections')]);
     const ij=await ir.json(),dj=await dr.json();
-    infraData=ij.records||[];detectData=dj.mapped||[];feedItems=dj.feed||[];
+    infraData=ij.records||[];window._recordsById={};infraData.forEach(r=>{window._recordsById[r.id]=r;});detectData=dj.mapped||[];feedItems=dj.feed||[];
     renderInfra();renderDetections();renderFeed();
     document.getElementById('stat-detections').textContent=dj.total||detectData.length;
     document.getElementById('stat-infra').textContent=infraData.length;
@@ -285,7 +302,57 @@ async function loadAll(){
   finally{document.getElementById('loading').classList.add('hidden')}
 }
 setInterval(async()=>{try{const r=await fetch('/api/detections'),j=await r.json();detectData=j.mapped||[];feedItems=j.feed||[];layers.drone.clearLayers();layers.scan.clearLayers();renderDetections();if(activeTab!=='infrastructure')renderFeed();document.getElementById('stat-detections').textContent=j.total||detectData.length}catch{}},60000);
+
+let threatLayer = L.layerGroup().addTo(map);
+let threatData  = {};
+window._recordsById = {};
+
+async function loadThreats() {
+  try {
+    const res  = await fetch('/api/threats');
+    const data = await res.json();
+    threatData = data.scored || {};
+    drawThreatHalos(data);
+    updateHotspotBanner(data.hotspots || []);
+  } catch (e) { console.warn('Threat layer unavailable:', e); }
+}
+
+function drawThreatHalos(data) {
+  threatLayer.clearLayers();
+  const scored = data.scored || {};
+  const seen = new Set();
+  Object.values(scored).forEach(s => {
+    const record = window._recordsById[s.id];
+    if (!record || !record.lat || !record.lng) return;
+    if (s.threat === 'NOMINAL') return;
+    const key = `${parseFloat(record.lat).toFixed(3)},${parseFloat(record.lng).toFixed(3)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const radii = { ELEVATED:300, COORDINATED:600, SATURATION:900 };
+    L.circle([record.lat, record.lng], {
+      radius: radii[s.threat] || 300,
+      color: s.threat_color,
+      fillColor: s.threat_color,
+      fillOpacity: 0.08,
+      opacity: 0.4,
+      weight: 1,
+      className: 'threat-halo'
+    }).bindPopup(`<div style="font-family:'Courier New',monospace;font-size:11px"><div style="color:${s.threat_color};font-weight:bold;margin-bottom:4px">⚠ ${s.threat_label} Surveillance Zone</div><div>${s.reasons.join('<br>')}</div><div style="margin-top:4px;opacity:0.7">${s.nearby_count} surveillance systems within 1 mile</div></div>`).addTo(threatLayer);
+  });
+}
+
+function updateHotspotBanner(hotspots) {
+  const banner = document.getElementById('hotspot-banner');
+  if (!banner) return;
+  const high = hotspots.filter(h => h.max_threat >= 2);
+  if (high.length === 0) { banner.classList.remove('visible'); return; }
+  banner.textContent = `⚠ ${high.length} SATURATION ZONE${high.length>1?'S':''} DETECTED — ${high.slice(0,3).map(h=>h.city).join(', ')}`;
+  banner.classList.add('visible');
+  setTimeout(() => banner.classList.remove('visible'), 8000);
+}
+
 loadAll();
+loadThreats();
 </script>
 
 <button id="menu-btn" onclick="toggleDrawer()">⚖</button>

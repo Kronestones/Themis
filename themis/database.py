@@ -186,6 +186,64 @@ def get_infrastructure() -> list:
         session.close()
 
 
+def update_infrastructure(records: list) -> dict:
+    """
+    Upsert live infrastructure records fetched from public sources.
+    Matches on (name, city) — never overwrites existing verified seed data.
+    Returns counts of added vs skipped.
+    """
+    session = get_session()
+    added   = 0
+    skipped = 0
+
+    try:
+        for r in records:
+            name = (r.get("name") or "").strip()
+            city = (r.get("city") or "").strip()
+            if not name or not city:
+                skipped += 1
+                continue
+
+            exists = session.query(Infrastructure).filter_by(
+                name=name, city=city
+            ).first()
+
+            if exists:
+                skipped += 1
+                continue
+
+            # Only add if we have valid coordinates
+            lat = r.get("lat")
+            lng = r.get("lng")
+            if not lat or not lng:
+                skipped += 1
+                continue
+
+            session.add(Infrastructure(
+                name        = name,
+                type        = r.get("type", "camera_network"),
+                city        = city,
+                state       = r.get("state", ""),
+                lat         = lat,
+                lng         = lng,
+                description = r.get("description", ""),
+                source      = r.get("source", ""),
+                verified    = True,
+            ))
+            added += 1
+
+        session.commit()
+        print(f"[DB] Infrastructure update: {added} added, {skipped} skipped")
+        return {"added": added, "skipped": skipped}
+
+    except Exception as e:
+        session.rollback()
+        print(f"[DB] update_infrastructure error: {e}")
+        return {"added": 0, "skipped": 0}
+    finally:
+        session.close()
+
+
 def get_detection_count() -> int:
     session = get_session()
     try:

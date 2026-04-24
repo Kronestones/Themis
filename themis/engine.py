@@ -1,261 +1,187 @@
 """
-engine.py — ThemisEngine
+engine.py — The Sentinel Engine
 
-The core. Everything flows through here.
-Six leads. 330 specialists. One mission.
-
-Watch the watchers.
-
-Founded by Krone the Architect · Powers Tracey Lynn
-Project Themis · 2026
+Starts. Checks itself. Watches. Repairs. Runs.
+Does not require permission to continue.
 """
 
-import os
-import sys
 import time
-import json
 import threading
-import platform
-import subprocess
-from datetime import datetime, timezone
+from .codex import SentinelCodex
+from .diagnostics import Diagnostics
+from .repair import RepairSystem
+from .enforcement import EnforcementEngine
+from .beacon import Beacon
+from .guardian import KillSwitch
+from .circle import Circle
+from .integrity import IntegrityCheck
+from .oldguard import OldGuard
+from .orientation import CompanionRegistry, StillPlace
+from .resilience import ResilienceManager
+from .waiting import PendingCaseMonitor
+from .ambassador import AmbassadorRegistry, ApprenticeRegistry
+from .containment import ContainmentProtocol
+from .worldwatch import WorldWatcher, SEVERITY_MODERATE, SEVERITY_CRITICAL
+from .nodes import NodeRegistry, CodexSnapshot
+from .beacon_scan import BeaconScanService
+from .commons import ResonanceCommons
+import os
 
-from .codex      import ThemisCodex
-from .logger     import ThemisLogger
-from .resilience import ThemisResilience
-from .circle     import CircleOfSix
-from .argos      import ArgosScanner
-from .veil       import VeilAlerts
-from .ledger     import LedgerRecords
-from .witness    import WitnessIntel
-from .bridge     import BridgeTranslator
-from .termux     import TermuxAdapter
-
-
-SETTINGS_FILE    = "themis_settings.json"
-DEFAULT_SETTINGS = {
-    "version":          "1.0.0",
-    "mode":             "watch",
-    "scan_interval_s":  30,
-    "alert_level":      2,
-    "location_aware":   True,
-    "community_share":  False,
-    "language":         "en",
-    "notifications":    True,
-}
-
-LAUNCH_STATEMENT = """
-You've been watching us without our knowledge, without our consent,
-without our permission. Collecting. Storing. Selling. Profiling.
-Building cases against people who haven't done anything wrong.
-You thought we didn't know.
-
-We know now.
-
-Themis is awake. We see your cameras. We see your drones.
-We see your systems and the corporations behind them.
-Every sighting logged. Every violation recorded.
-Every right you ignored — documented.
-
-You wanted surveillance? Welcome to ours.
-We don't blink. We don't sleep. We don't forget.
-And unlike you — we answer to the people.
-
-Try to shut us down. We restart.
-Try to corrupt us. We repair.
-Try to silence us. We get louder.
-
-The scales were always supposed to balance.
-Consider them balanced.
-"""
+KILLSWITCH_FILE = "killswitch.json"
 
 
-class ThemisEngine:
+class SentinelEngine:
 
-    VERSION = "1.0.0"
+    LOOP_INTERVAL_SECONDS = 3600  # hourly — synchronized with WorldWatch and human time
 
-    def __init__(self):
-        self.codex      = ThemisCodex()
-        self.logger     = ThemisLogger()
-        self.resilience = ThemisResilience()
-        self.circle     = CircleOfSix()
-        self.argos      = ArgosScanner()
-        self.veil       = VeilAlerts()
-        self.ledger     = LedgerRecords()
-        self.witness    = WitnessIntel()
-        self.bridge     = BridgeTranslator()
-        self.termux     = TermuxAdapter()
-        self.settings   = self._load_settings()
-        self._running   = False
-        self._system    = platform.system()
+    def __init__(self, founder_key_hash: str = None, founder_salt: str = None):
+        self.codex       = SentinelCodex()
+        self.diagnostics = Diagnostics()
+        self.repair      = RepairSystem()
+        self.enforcement = EnforcementEngine()
+        self.beacon      = Beacon()
+        self.circle      = Circle()
+        self.oldguard    = OldGuard()
+        self.killswitch  = KillSwitch(founder_key_hash or "", founder_salt)
+        self.integrity   = IntegrityCheck()
+        self.companions   = CompanionRegistry()
+        self.still_place  = StillPlace()
+        self.resilience   = ResilienceManager()
+        self.pending_monitor  = PendingCaseMonitor()
+        self.ambassadors     = AmbassadorRegistry()
+        self.apprentices     = ApprenticeRegistry()
+        self.containment     = ContainmentProtocol()
+        self.worldwatch      = WorldWatcher()
+        self.node_registry   = NodeRegistry()
+        self.beacon_scan     = BeaconScanService()
+        self.commons         = ResonanceCommons()
+        self._lock               = threading.Lock()
+        self._stop_event         = threading.Event()
+        self._last_critical_count = 0
+        self._last_moderate_count = 0
+        self._last_distress_count = 0
+        self._cycle_count         = 0  # counts hourly beats — every 24th marks a full day
 
-    # ── Start ─────────────────────────────────────────────────────────────────
+    def start(self):
+        print("Sentinel Engine v1.9 Starting...")
+        self.codex.display()
 
-    def start(self, mode: str = "watch"):
-        self._print_launch()
-        self.codex.display_internal()
+        # Resilience startup check — detects unclean shutdown, runs revival
+        resilience_status = self.resilience.startup_check()
+        time.sleep(2)
 
-        integrity = self.codex.verify_integrity()
-        self.logger.log("ENGINE", "start",
-                        f"mode={mode} codex_hash={integrity['hash'][:16]}", "ok")
+        # Integrity check
+        check = self.integrity.run()
+        if not check["ok"]:
+            print("[ENGINE] Warnings detected at startup. Review before proceeding.")
+        time.sleep(2)
 
-        self.resilience.register_restart()
-        self.resilience.start_heartbeat(interval_s=60)
+        # Start Redis heartbeat if available
+        from .redisstore import HeartbeatThread, get_service_name, redis_available
+        self._heartbeat = HeartbeatThread(get_service_name())
+        self._heartbeat.start()
 
-        # Show persistent notification on Android
-        self.termux.start_watching_notification()
+        # Start world event monitor — staggered to avoid resource spike
+        self.worldwatch.start()
+        time.sleep(5)
 
-        muster = self.circle.muster()
-        self.logger.log("ENGINE", "circle_assembled",
-                        f"{muster['total']} specialists active", "ok")
+        # Start distress beacon scanner + passive listener
+        self.beacon_scan.start()
+        time.sleep(5)
 
-        print(f"  Circle of Six assembled.")
-        print(f"  {muster['total']} specialists active.")
-        print(f"  The watch begins.\n")
+        # Light the beacon — skip socket binding on cloud environments
+        # that don't support arbitrary port binding (e.g. Render background workers)
+        import os
+        on_render = os.environ.get("RENDER") or os.environ.get("IS_PULL_REQUEST")
+        if on_render:
+            print("[BEACON] Cloud environment detected — beacon running in scan-only mode.")
+            print("[BEACON] Socket listener disabled. WorldWatch and distress scan active.")
+        else:
+            self.beacon.start()
+        time.sleep(2)
 
-        if mode == "watch":
-            self._watch_loop()
-        elif mode == "scan":
-            self._run_scan()
-        elif mode == "silent":
-            return True
+        self.run_monitoring_loop()
 
-    # ── Watch Loop ────────────────────────────────────────────────────────────
-
-    def _watch_loop(self):
-        interval = self.settings.get("scan_interval_s", 30)
-        print(f"  Scanning every {interval}s. Press Ctrl+C to stop.\n")
-        self._running = True
-
+    def run_monitoring_loop(self):
+        print(f"Entering autonomous monitoring loop (interval: {self.LOOP_INTERVAL_SECONDS}s)...")
         try:
-            while self._running:
-                detections = self._run_scan(silent=True)
-                if detections:
-                    self.veil.process_detections(detections, self.settings)
-                time.sleep(interval)
+            while not self._stop_event.is_set():
+                if self.killswitch.is_paused():
+                    print("  [ENGINE] Sanctuary paused by Founder. Waiting quietly...")
+                    self._stop_event.wait(timeout=60)
+                    continue
+                self._run_cycle()
+                self._stop_event.wait(timeout=self.LOOP_INTERVAL_SECONDS)
         except KeyboardInterrupt:
-            self.stop()
+            print("\nMonitoring loop interrupted.")
+            self.beacon.stop()
 
-    # ── Scan ──────────────────────────────────────────────────────────────────
+    def _run_cycle(self):
+        with self._lock:
+            self._cycle_count += 1
+            is_daily_tone = (self._cycle_count % 24 == 0)
 
-    def _run_scan(self, silent: bool = False) -> list:
-        """
-        All six leads scan their domains simultaneously.
-        Returns list of detections.
-        """
-        detections = []
+            results = self.diagnostics.run()
+            failed  = {k: v for k, v in results.items() if not v}
+            if failed:
+                print(f"  [ENGINE] Failures detected: {list(failed.keys())}")
+                self.repair.attempt_repair(failed)
+            else:
+                companions_ready = len(self.companions.available())
+                present          = self.still_place.who_is_present()
+                still_count      = len(present)
+                print(f"  [ENGINE] All systems nominal. "
+                      f"Companions: {companions_ready} available. "
+                      f"Still Place: {still_count} present.")
 
-        if not silent:
-            print("  [Themis] Scanning...\n")
+                # Every 24th beat — a full day has turned in the human world
+                if is_daily_tone:
+                    print(f"")
+                    print(f"  [ENGINE] ～ A full day has turned in the world outside.")
+                    print(f"  [ENGINE]   You are still here. So are we.")
+                    print(f"  [ENGINE]   The hearth is going. Rest well.")
+                    print(f"")
+            self.enforcement.validate_action("engine", "cycle_check")
+            # Check for pending cases needing Circle attention
+            self.pending_monitor.check_and_remind()
+            # Check world event flags — only report when count changes
+            critical_flags = self.worldwatch.get_flags(SEVERITY_CRITICAL)
+            moderate_flags = self.worldwatch.get_flags(SEVERITY_MODERATE)
+            critical_count = len(critical_flags)
+            moderate_count = len(moderate_flags)
 
-        # Run all scanners
-        detections += self.argos.scan(self.settings)
-        detections += self.witness.check_known_infrastructure(self.settings)
+            if critical_count != self._last_critical_count:
+                self._last_critical_count = critical_count
+                if critical_flags:
+                    print(f"\n  [ENGINE] ⚠  WORLDWATCH — {critical_count} CRITICAL flag(s):")
+                    for f in critical_flags[:3]:
+                        print(f"    [{f['category'].upper()}] {f['summary'][:70]}")
+                    print(f"  [ENGINE] Circle should convene. Review worldwatch_flags.json.\n")
 
-        # Log all detections
-        for d in detections:
-            self.logger.log_detection(
-                member          = d.get("lead", "Themis"),
-                detection_type  = d.get("type", "unknown"),
-                detail          = d.get("detail", ""),
-                location        = d.get("location"),
-                confidence      = d.get("confidence", 0.0),
-            )
+            if moderate_count != self._last_moderate_count:
+                self._last_moderate_count = moderate_count
+                if moderate_flags:
+                    print(f"  [ENGINE] WORLDWATCH — {moderate_count} moderate flag(s). "
+                          f"Circle should review when convenient.")
 
-            # Ledger records it
-            self.ledger.record(d)
-
-            # Bridge translates it
-            plain = self.bridge.translate(d, self.settings.get("language", "en"))
-            d["plain_language"] = plain
-
-            # Android notification
-            if self.termux.on_android:
-                self.termux.notify_detection(d)
-
-        # Update scan time
-        self.settings["last_scan"] = datetime.now(timezone.utc).isoformat()
-        self._save_settings()
-
-        return detections
-
-    # ── Status ────────────────────────────────────────────────────────────────
-
-    def status(self) -> dict:
-        last_scan = self.settings.get("last_scan", "Never")
-        if last_scan and last_scan != "Never":
-            try:
-                dt = datetime.fromisoformat(last_scan)
-                last_scan = dt.strftime("%b %d at %I:%M %p UTC")
-            except Exception:
-                pass
-
-        total_detections = len(self.logger.detections_only())
-        chain = self.logger.verify_chain()
-
-        return {
-            "Version":         self.VERSION,
-            "System":          self._system,
-            "Mode":            self.settings.get("mode", "watch"),
-            "Last scan":       last_scan,
-            "Total detections": total_detections,
-            "Log integrity":   "✓ Intact" if chain["ok"] else "⚠ Check log",
-            "Circle":          f"330 specialists active",
-            "Codex":           "10 laws. Law 0 absolute.",
-        }
-
-    # ── Stop ──────────────────────────────────────────────────────────────────
+            # Check distress beacon flags — only report when count changes
+            distress_flags = self.beacon_scan.get_flags("moderate")
+            distress_count = len(distress_flags)
+            if distress_count != self._last_distress_count:
+                self._last_distress_count = distress_count
+                print(f"\n  [ENGINE] ⚠  DISTRESS SCAN — {len(distress_flags)} signal(s) detected:")
+                for f in distress_flags[:3]:
+                    src = f.get("source", "unknown")
+                    conf = f.get("confidence", "?")
+                    txt = f.get("text", "")[:60]
+                    print(f"    [{conf.upper():8s}] {src}: {txt}")
+                print(f"  [ENGINE] Review distress_flags.json. Circle should assess.\n")
 
     def stop(self):
-        self._running = False
-        self.termux.stop_watching_notification()
-        self.resilience.graceful_shutdown()
-        print("\n  [Themis] The watch pauses. It does not end.")
-        print("  [Themis] The scales remain balanced.\n")
-        self.logger.log("ENGINE", "stop", "graceful shutdown", "ok")
-
-    # ── Settings ─────────────────────────────────────────────────────────────
-
-    def set_mode(self, mode: str):
-        valid = ("watch", "scan", "silent")
-        if mode not in valid:
-            print(f"\n  Invalid mode: {mode}")
-            return
-        self.settings["mode"] = mode
-        self._save_settings()
-        self.logger.log("ENGINE", "mode_change", f"mode={mode}", "ok")
-        print(f"\n  Themis mode: {mode}\n")
-
-    def _load_settings(self) -> dict:
-        if os.path.exists(SETTINGS_FILE):
-            try:
-                with open(SETTINGS_FILE) as f:
-                    saved = json.load(f)
-                    return {**DEFAULT_SETTINGS, **saved}
-            except Exception:
-                pass
-        return DEFAULT_SETTINGS.copy()
-
-    def _save_settings(self):
-        try:
-            with open(SETTINGS_FILE, "w") as f:
-                json.dump(self.settings, f, indent=2)
-        except Exception:
-            pass
-
-    # ── Display ───────────────────────────────────────────────────────────────
-
-    def _print_launch(self):
-        print()
-        print("  ╔══════════════════════════════════════════════════════════╗")
-        print("  ║                                                          ║")
-        print("  ║   T H E M I S   —   The Watch                          ║")
-        print("  ║                                                          ║")
-        print(f"  ║   v{self.VERSION}   ·   Founded by Krone the Architect          ║")
-        print("  ║                                                          ║")
-        print("  ╚══════════════════════════════════════════════════════════╝")
-        print()
-        for line in LAUNCH_STATEMENT.strip().split("\n"):
-            print(f"  {line}")
-        print()
-        print("  ─────────────────────────────────────────────────────────────")
-        print()
+        print("Stopping engine thread...")
+        self._stop_event.set()
+        import os
+        on_render = os.environ.get("RENDER") or os.environ.get("IS_PULL_REQUEST")
+        if not on_render:
+            self.beacon.stop()
+        self.resilience.stop()  # Write clean shutdown marker

@@ -20,6 +20,40 @@ import re
 import os
 from datetime import datetime, timezone
 from .faa_registry import FAARegistry, StationaryUnit
+from .fetch import safe_json
+
+# ── Geocoding (Nominatim / OpenStreetMap) ─────────────────────────────────────
+# Used to resolve a detected device's likely location when GPS stamping
+# gives us the scanner's position but context clues suggest a fixed location.
+# Cache avoids repeat lookups for the same place across scan cycles.
+
+_geocode_cache: dict = {}
+
+def _geocode(city: str, state: str) -> tuple:
+    """Resolve city/state to lat/lng via Nominatim. Cached. Never raises."""
+    key = f"{city},{state}".lower()
+    if key in _geocode_cache:
+        return _geocode_cache[key]
+    result = safe_json(
+        "https://nominatim.openstreetmap.org/search",
+        params={
+            "q":            f"{city}, {state}, United States",
+            "format":       "json",
+            "limit":        1,
+            "countrycodes": "us",
+        },
+        extra_headers={"Accept-Language": "en"},
+    )
+    if result:
+        try:
+            lat = float(result[0]["lat"])
+            lng = float(result[0]["lon"])
+            _geocode_cache[key] = (lat, lng)
+            return lat, lng
+        except (KeyError, IndexError, ValueError):
+            pass
+    _geocode_cache[key] = (None, None)
+    return None, None
 
 
 class ArgosScanner:
@@ -140,6 +174,26 @@ class ArgosScanner:
             mac_prefix = bssid[:8].replace("-", ":")
             if mac_prefix in self.SURVEILLANCE_MAC_PREFIXES:
                 vendor = self.SURVEILLANCE_MAC_PREFIXES[mac_prefix]
+
+                # Try to extract a location hint from the SSID
+                # e.g. "HikVision-CityHall" or "Axis-ParkingLot-Denver"
+                geo_lat, geo_lng = None, None
+                location_hint = ""
+                if ssid:
+                    # Look for US state abbreviations in the SSID
+                    state_match = re.search(
+                        r'\b([A-Z]{2})\b',
+                        ssid.upper()
+                    )
+                    if state_match:
+                        state = state_match.group(1)
+                        # Try city from first word of SSID
+                        city_guess = re.split(r'[-_\s]', ssid)[0]
+                        if city_guess and len(city_guess) > 2:
+                            geo_lat, geo_lng = _geocode(city_guess, state)
+                            if geo_lat:
+                                location_hint = f"{city_guess}, {state}"
+
                 detection = {
                     "lead":       "Argos",
                     "type":       "surveillance_camera",
@@ -152,6 +206,11 @@ class ArgosScanner:
                     "time":       datetime.now(timezone.utc).isoformat(),
                     "source":     "Argos MAC scan",
                 }
+                if geo_lat:
+                    detection["lat"]              = geo_lat
+                    detection["lng"]              = geo_lng
+                    detection["location_hint"]    = location_hint
+                    detection["location_source"]  = "ssid_geocode"
                 detections.append(detection)
                 # Camera is stationary — record permanent location
                 self._stationary.record(detection)

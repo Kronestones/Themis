@@ -23,9 +23,8 @@ import re
 import json
 import os
 import socket
-import urllib.request
-import urllib.parse
 from datetime import datetime, timezone
+from .fetch import safe_get
 
 
 # ── Known Government and Contractor Registrations ────────────────────────────
@@ -358,11 +357,10 @@ class FAARegistry:
             clean_n = n_number.upper().lstrip("N")
             url = f"https://registry.faa.gov/aircraftinquiry/Search/NNumberInquiry?nNumber={clean_n}"
 
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0"
-            })
-            with urllib.request.urlopen(req, timeout=5) as response:
-                html = response.read().decode("utf-8", errors="replace")
+            resp = safe_get(url, timeout=8)
+            if resp is None or not resp.ok:
+                return None
+            html = resp.text
 
             # Parse registrant name from FAA response
             # FAA page contains registrant info in specific HTML patterns

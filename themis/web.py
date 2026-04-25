@@ -46,43 +46,7 @@ def api_infrastructure():
     })
 
 
-@app.route("/api/threats")
-def api_threats():
-    from .database import get_infrastructure
-    from .intelligence import build_threat_map
-    records = get_infrastructure()
-    # Normalize field names for intelligence engine
-    for r in records:
-        r["lon"] = r.get("lng")
-        r["category"] = r.get("type")
-    result = build_threat_map(records)
-    return jsonify(result)
 
-@app.route("/api/v1/surveillance")
-def public_api():
-    from .database import get_infrastructure
-    category = request.args.get("category")
-    state    = request.args.get("state")
-    city     = request.args.get("city")
-    limit    = min(int(request.args.get("limit", 100)), 500)
-    offset   = int(request.args.get("offset", 0))
-    records  = get_infrastructure()
-    if category:
-        records = [r for r in records if r.get("type") == category]
-    if state:
-        records = [r for r in records if r.get("state","").lower() == state.lower()]
-    if city:
-        records = [r for r in records if city.lower() in r.get("city","").lower()]
-    total = len(records)
-    page  = records[offset: offset + limit]
-    return jsonify({
-        "api_version": "1.0",
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "count": len(page),
-        "records": page,
-    })
 
 @app.route("/report/<city_state>")
 def city_report(city_state):

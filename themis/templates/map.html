@@ -823,12 +823,6 @@ async function loadAll() {
     updateLegendCounts();
     updateStats(detectJson.total);
 
-    // Debug: log marker counts per layer
-    Object.entries(markers).forEach(([k, g]) => {
-      if (g.getLayers().length > 0)
-        console.log(`[Themis] Layer '${k}': ${g.getLayers().length} markers`);
-    });
-
   } catch (e) {
     console.error('Load error:', e);
   } finally {
@@ -906,15 +900,11 @@ function renderDetectionMarkers() {
 
 // ── Feed ──────────────────────────────────────────────────────────────────────
 
-// ── Legend focus — tap a layer to isolate + fly to it ─────────────────────────
-
-let activeLayer = 'all';
+// ── Legend focus — tap a layer to navigate map to it ─────────────────────────
 
 function focusLayer(layerKey, el) {
-  // Update active highlight on legend rows
-  document.querySelectorAll('.legend-row').forEach(r => {
-    r.classList.remove('active', 'dimmed');
-  });
+  // Update active highlight
+  document.querySelectorAll('.legend-row').forEach(r => r.classList.remove('active'));
   el.classList.add('active');
 
   // Always keep all layers visible
@@ -922,47 +912,41 @@ function focusLayer(layerKey, el) {
     if (!map.hasLayer(markers[k])) map.addLayer(markers[k]);
   });
 
-  // Close sidebar on mobile first, then navigate after animation settles
+  // Close sidebar on mobile
   const sidebar = document.getElementById('sidebar');
-  const isMobile = window.innerWidth <= 640;
-  const sidebarOpen = isMobile && sidebar.classList.contains('open');
-
-  if (sidebarOpen) {
+  if (window.innerWidth <= 640 && sidebar.classList.contains('open')) {
     sidebar.classList.remove('open');
   }
 
-  // Delay navigation so sidebar close animation finishes (250ms)
-  // and Leaflet recalculates map dimensions correctly
-  const delay = sidebarOpen ? 300 : 0;
+  // Navigate
+  if (layerKey === 'all') {
+    map.flyTo([39.5, -98.35], 4, { animate: true, duration: 1 });
+    return;
+  }
 
-  setTimeout(() => {
-    map.invalidateSize();  // force Leaflet to recalculate viewport
+  const group = markers[layerKey];
+  if (!group) {
+    console.warn(`[Themis] No marker group for: ${layerKey}`);
+    return;
+  }
 
-    if (layerKey === 'all' || layerKey === activeLayer) {
-      activeLayer = 'all';
-      map.flyTo([39.5, -98.35], 4, { animate: true, duration: 1 });
-      return;
-    }
+  const layers = group.getLayers();
+  console.log(`[Themis] ${layerKey}: ${layers.length} markers`);
 
-    activeLayer = layerKey;
+  if (layers.length === 0) {
+    console.warn(`[Themis] Layer empty: ${layerKey}`);
+    return;
+  }
 
-    const group = markers[layerKey];
-    console.log(`[Themis] focusLayer: ${layerKey} | group: ${!!group} | markers: ${group ? group.getLayers().length : 'N/A'} | map has layer: ${group ? map.hasLayer(group) : 'N/A'}`);
-    if (group && group.getLayers().length > 0) {
-      try {
-        const bounds = group.getBounds();
-        map.fitBounds(bounds.pad(0.1), {
-          animate: true,
-          duration: 1,
-          maxZoom: 7,
-        });
-      } catch(e) {
-        console.warn(`[Themis] fitBounds failed for layer: ${layerKey}`, e);
-      }
-    } else {
-      console.warn(`[Themis] No markers loaded for layer: ${layerKey}`);
-    }
-  }, delay);
+  try {
+    map.fitBounds(group.getBounds().pad(0.1), {
+      animate: true,
+      duration: 1,
+      maxZoom: 7,
+    });
+  } catch(e) {
+    console.warn(`[Themis] fitBounds error: ${layerKey}`, e);
+  }
 }
 
 // ── Update legend counts after data loads ─────────────────────────────────────

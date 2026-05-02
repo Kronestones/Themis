@@ -6,35 +6,33 @@ Six leads. 330 specialists. One mission.
 
 Watch the watchers.
 
-Founded by Krone the Architect · Powers Tracey Lynn
 Project Themis · 2026
 """
 
 import os
-import sys
 import time
 import json
-import threading
 import platform
-import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-from .codex      import ThemisCodex
-from .logger     import ThemisLogger
-from .resilience import ThemisResilience
-from .circle     import CircleOfSix
-from .argos      import ArgosScanner
-from .veil       import VeilAlerts
-from .ledger     import LedgerRecords
-from .witness    import WitnessIntel
-from .bridge     import BridgeTranslator
-from .termux     import TermuxAdapter
+from .codex            import ThemisCodex
+from .logger           import ThemisLogger
+from .resilience       import ThemisResilience
+from .circle           import CircleOfSix
+from .argos            import ArgosScanner
+from .veil             import VeilAlerts
+from .ledger           import LedgerRecords
+from .witness          import WitnessIntel
+from .bridge           import BridgeTranslator
+from .termux           import TermuxAdapter
+from .sentinel_reporter import SentinelReporter
+from .pattern_analyzer import ThemisPatternAnalyzer   # ← Alice port: MetaAnalyzer
+from .state_manager    import ThemisStateManager      # ← Alice port: NodePersistence
 
 
 SETTINGS_FILE    = "themis_settings.json"
 DEFAULT_SETTINGS = {
-    "version":          "1.0.0",
+    "version":          "1.1.0",
     "mode":             "watch",
     "scan_interval_s":  30,
     "alert_level":      2,
@@ -42,7 +40,13 @@ DEFAULT_SETTINGS = {
     "community_share":  False,
     "language":         "en",
     "notifications":    True,
+    "sentinel_host":    "",
+    "sentinel_port":    5778,
+    "sentinel_token":   "",
 }
+
+# Run pattern analysis every N scan cycles
+PATTERN_ANALYSIS_INTERVAL = 10
 
 LAUNCH_STATEMENT = """
 You've been watching us without our knowledge, without our consent,
@@ -72,7 +76,7 @@ Consider them balanced.
 
 class ThemisEngine:
 
-    VERSION = "1.0.0"
+    VERSION = "1.1.0"
 
     def __init__(self):
         self.codex      = ThemisCodex()
@@ -87,7 +91,18 @@ class ThemisEngine:
         self.termux     = TermuxAdapter()
         self.settings   = self._load_settings()
         self._running   = False
+        self._stopped   = False
         self._system    = platform.system()
+        self._scan_count = 0
+        self._start_time = time.time()
+        self.sentinel   = SentinelReporter(self.settings)
+
+        # ── Alice ports ───────────────────────────────────────────────────────
+        # Pattern analyzer — detects attractors, settling, clustering in scans
+        self.pattern    = ThemisPatternAnalyzer()
+
+        # State manager — persists scan history and integrity across restarts
+        self.state      = ThemisStateManager()
 
     # ── Start ─────────────────────────────────────────────────────────────────
 
@@ -95,14 +110,65 @@ class ThemisEngine:
         self._print_launch()
         self.codex.display_internal()
 
+        # ── Restore state from previous session ───────────────────────────────
+        restored = self.state.load_all()
+
+        # Feed saved scan cycles back into pattern analyzer
+        # so it has real baselines from previous sessions
+        saved_cycles = self.state.get_scan_cache()
+        if saved_cycles:
+            for cycle in saved_cycles:
+                # Reconstruct minimal detection list from cached cycle
+                # so PatternAnalyzer can restore its history
+                synthetic = [
+                    {"type": t, "location": (cycle.get("locations") or [""])[0]}
+                    for t in (cycle.get("types") or [])
+                ]
+                self.pattern.record(synthetic)
+            print(f"  [ENGINE] Pattern analyzer restored with "
+                  f"{len(saved_cycles)} historical cycles.")
+
+        # ── Integrity check ───────────────────────────────────────────────────
+        # Now actually wired in — compares current files to saved hashes
+        integrity_result = self.state.check_integrity()
+        if not integrity_result["ok"]:
+            print(f"\n  [INTEGRITY] ⚠  {integrity_result['message']}")
+            for item in integrity_result["tampered"]:
+                print(f"    {item['path']}: {item['reason']}")
+                self.logger.log("ENGINE", "integrity_warning",
+                                f"{item['path']}: {item['reason']}", "warning")
+            # Attempt self-repair via resilience module
+            repair = self.resilience.attempt_self_repair(
+                integrity_result["tampered"])
+            if repair["ok"]:
+                print(f"  [INTEGRITY] Self-repair successful.")
+                # Rebuild integrity map after repair
+                self.state.rebuild_integrity()
+            else:
+                print(f"  [INTEGRITY] Self-repair failed for: "
+                      f"{repair['failed']}")
+        else:
+            print(f"  [INTEGRITY] {integrity_result['message']}")
+
+        # ── Codex integrity check ─────────────────────────────────────────────
         integrity = self.codex.verify_integrity()
         self.logger.log("ENGINE", "start",
                         f"mode={mode} codex_hash={integrity['hash'][:16]}", "ok")
 
+        founding_anchor = self.settings.get("codex_founding_anchor")
+        drift = self.codex.check_drift(founding_anchor)
+        if not drift["ok"]:
+            print(f"\n  [CODEX] ⚠  {drift['message']}\n")
+            self.logger.log("ENGINE", "codex_drift", drift["message"], "critical")
+        elif drift.get("action") == "store_as_anchor":
+            self.settings["codex_founding_anchor"] = drift["hash"]
+            self._save_settings()
+            print(f"  [CODEX] Founding anchor established: {drift['hash'][:16]}...")
+        else:
+            print(f"  [CODEX] {drift['message']}")
+
         self.resilience.register_restart()
         self.resilience.start_heartbeat(interval_s=60)
-
-        # Show persistent notification on Android
         self.termux.start_watching_notification()
 
         muster = self.circle.muster()
@@ -113,47 +179,12 @@ class ThemisEngine:
         print(f"  {muster['total']} specialists active.")
         print(f"  The watch begins.\n")
 
-        # Refresh infrastructure from live public sources in background
-        # Never blocks the watch loop — runs once at startup
-        threading.Thread(
-            target=self._refresh_infrastructure,
-            daemon=True,
-            name="infra-refresh",
-        ).start()
-
         if mode == "watch":
             self._watch_loop()
         elif mode == "scan":
             self._run_scan()
         elif mode == "silent":
             return True
-
-    # ── Infrastructure Refresh ────────────────────────────────────────────────
-
-    def _refresh_infrastructure(self):
-        """
-        Fetch live infrastructure data from public sources and upsert into DB.
-        Runs in a background thread at startup — never blocks the watch loop.
-        Only runs when DATABASE_URL is set (Render deployment).
-        """
-        import os
-        if not os.environ.get("DATABASE_URL"):
-            return  # Local Termux run — skip, no DB available
-
-        try:
-            from .sources import fetch_all
-            from .database import update_infrastructure
-
-            self.logger.log("ENGINE", "infra_refresh", "starting", "ok")
-            records = fetch_all()
-            result  = update_infrastructure(records)
-            self.logger.log(
-                "ENGINE", "infra_refresh",
-                f"added={result['added']} skipped={result['skipped']}", "ok"
-            )
-        except Exception as e:
-            # Never let this crash the engine
-            self.logger.log("ENGINE", "infra_refresh_error", str(e), "warn")
 
     # ── Watch Loop ────────────────────────────────────────────────────────────
 
@@ -164,54 +195,53 @@ class ThemisEngine:
 
         try:
             while self._running:
+                self._scan_count += 1
                 detections = self._run_scan(silent=True)
+
                 if detections:
                     self.veil.process_detections(detections, self.settings)
+
+                # ── Alice port: record scan cycle for pattern analysis ─────────
+                self.pattern.record(detections)
+                self.state.record_scan_cycle(detections)
+
+                # ── Alice port: run pattern analysis every N cycles ───────────
+                if self._scan_count % PATTERN_ANALYSIS_INTERVAL == 0:
+                    report = self.pattern.analyze()
+                    self.logger.log("ENGINE", "pattern_analysis",
+                                    f"novelty={report.mean_novelty:.3f} "
+                                    f"trend={report.novelty_trend} "
+                                    f"settling={report.settling} "
+                                    f"attractors={len(report.attractors)}",
+                                    "ok")
+                    if report.settling or report.attractors or report.type_clustered:
+                        print(report.describe())
+                        for rec in report.recommendations:
+                            self.logger.log("ENGINE", "pattern_recommendation",
+                                            rec, "info")
+
                 time.sleep(interval)
+
         except KeyboardInterrupt:
-            self.stop()
+            self.stop({
+                "initiated_by": "keyboard_interrupt",
+                "signal":       "SIGINT",
+                "reason":       "User pressed Ctrl+C",
+                "scan_count":   self._scan_count,
+                "forced":       False,
+            })
 
     # ── Scan ──────────────────────────────────────────────────────────────────
 
     def _run_scan(self, silent: bool = False) -> list:
-        """
-        All leads scan their domains simultaneously.
-        Location is fetched once at scan start and stamped onto every detection.
-        Returns list of detections.
-        """
+        detections = []
+
         if not silent:
             print("  [Themis] Scanning...\n")
 
-        # Grab location once — reused for every detection this scan
-        scan_location = self.termux.get_location()
+        detections += self.argos.scan(self.settings)
+        detections += self.witness.check_known_infrastructure(self.settings)
 
-        # Fan out scanners in parallel
-        scan_fns = {
-            "argos":   lambda: self.argos.scan(self.settings),
-            "witness": lambda: self.witness.check_known_infrastructure(self.settings),
-        }
-
-        raw_detections = []
-        with ThreadPoolExecutor(max_workers=len(scan_fns)) as pool:
-            futures = {pool.submit(fn): name for name, fn in scan_fns.items()}
-            for future in as_completed(futures):
-                name = futures[future]
-                try:
-                    raw_detections.extend(future.result())
-                except Exception as e:
-                    self.logger.log("ENGINE", "scan_error",
-                                    f"{name} raised: {e}", "warn")
-
-        # Stamp location onto every detection that doesn't already have one
-        detections = []
-        for d in raw_detections:
-            if scan_location and not d.get("lat"):
-                d["lat"] = scan_location.get("lat")
-                d["lng"] = scan_location.get("lon")   # termux returns 'lon'
-                d["location_accuracy"] = scan_location.get("accuracy")
-            detections.append(d)
-
-        # Log all detections
         for d in detections:
             self.logger.log_detection(
                 member          = d.get("lead", "Themis"),
@@ -220,28 +250,23 @@ class ThemisEngine:
                 location        = d.get("location"),
                 confidence      = d.get("confidence", 0.0),
             )
-
-            # Ledger records it (local flat file)
             self.ledger.record(d)
 
-            # Persist to Neon DB if DATABASE_URL is set (web deployment)
             try:
-                import os
                 if os.environ.get("DATABASE_URL"):
                     from .database import save_detection
                     save_detection(d)
             except Exception:
-                pass  # Never let DB errors stop the watch
+                pass
 
-            # Bridge translates it
             plain = self.bridge.translate(d, self.settings.get("language", "en"))
             d["plain_language"] = plain
 
-            # Android notification
             if self.termux.on_android:
                 self.termux.notify_detection(d)
 
-        # Update scan time
+            self.sentinel.push_if_warranted(d)
+
         self.settings["last_scan"] = datetime.now(timezone.utc).isoformat()
         self._save_settings()
 
@@ -260,24 +285,40 @@ class ThemisEngine:
 
         total_detections = len(self.logger.detections_only())
         chain = self.logger.verify_chain()
+        pattern_stats = self.pattern.stats()
 
         return {
-            "Version":         self.VERSION,
-            "System":          self._system,
-            "Mode":            self.settings.get("mode", "watch"),
-            "Last scan":       last_scan,
-            "Total detections": total_detections,
-            "Log integrity":   "✓ Intact" if chain["ok"] else "⚠ Check log",
-            "Circle":          f"330 specialists active",
-            "Codex":           "10 laws. Law 0 absolute.",
+            "Version"          : self.VERSION,
+            "System"           : self._system,
+            "Mode"             : self.settings.get("mode", "watch"),
+            "Last scan"        : last_scan,
+            "Total detections" : total_detections,
+            "Log integrity"    : "✓ Intact" if chain["ok"] else "⚠ Check log",
+            "Circle"           : "330 specialists active",
+            "Codex"            : "11 laws. Law 0 absolute.",
+            "Pattern cycles"   : pattern_stats.get("cycles_recorded", 0),
+            "Pattern novelty"  : pattern_stats.get("mean_novelty", "—"),
         }
 
     # ── Stop ──────────────────────────────────────────────────────────────────
 
-    def stop(self):
+    def stop(self, shutdown_ctx: dict = None):
+        if self._stopped:
+            return
+        self._stopped = True
         self._running = False
+
+        # ── Alice port: save all state before shutdown ─────────────────────────
+        uptime = time.time() - self._start_time
+        self.state.save_all(
+            scan_count     = self._scan_count,
+            uptime_seconds = uptime,
+        )
+        print(f"  [ENGINE] State saved. "
+              f"{self._scan_count} cycles, {uptime:.0f}s uptime.")
+
         self.termux.stop_watching_notification()
-        self.resilience.graceful_shutdown()
+        self.resilience.graceful_shutdown(shutdown_ctx)
         print("\n  [Themis] The watch pauses. It does not end.")
         print("  [Themis] The scales remain balanced.\n")
         self.logger.log("ENGINE", "stop", "graceful shutdown", "ok")
@@ -308,6 +349,7 @@ class ThemisEngine:
         try:
             with open(SETTINGS_FILE, "w") as f:
                 json.dump(self.settings, f, indent=2)
+            self.sentinel = SentinelReporter(self.settings)
         except Exception:
             pass
 
@@ -319,7 +361,7 @@ class ThemisEngine:
         print("  ║                                                          ║")
         print("  ║   T H E M I S   —   The Watch                          ║")
         print("  ║                                                          ║")
-        print(f"  ║   v{self.VERSION}   ·   Founded by Krone the Architect          ║")
+        print(f"  ║   v{self.VERSION}   ·   Founded by Krone the Architect        ║")
         print("  ║                                                          ║")
         print("  ╚══════════════════════════════════════════════════════════╝")
         print()

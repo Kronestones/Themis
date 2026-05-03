@@ -358,7 +358,7 @@
     .popup-kyr a:hover { text-decoration: underline; }
 
     /* ── Mobile ── */
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
       #sidebar {
         position: fixed;
         top: 0;
@@ -900,52 +900,63 @@ function renderDetectionMarkers() {
 
 // ── Feed ──────────────────────────────────────────────────────────────────────
 
-// ── Legend focus — tap a layer to navigate map to it ─────────────────────────
+// ── Legend focus — tap to show only that layer ────────────────────────────────
+
+let activeLayer = 'all';
 
 function focusLayer(layerKey, el) {
   // Update active highlight
-  document.querySelectorAll('.legend-row').forEach(r => r.classList.remove('active'));
+  document.querySelectorAll('.legend-row').forEach(r => r.classList.remove('active', 'dimmed'));
   el.classList.add('active');
-
-  // Always keep all layers visible
-  Object.keys(markers).forEach(k => {
-    if (!map.hasLayer(markers[k])) map.addLayer(markers[k]);
-  });
 
   // Close sidebar on mobile
   const sidebar = document.getElementById('sidebar');
-  if (window.innerWidth <= 640 && sidebar.classList.contains('open')) {
+  if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
     sidebar.classList.remove('open');
   }
 
-  // Navigate
   if (layerKey === 'all') {
+    // Show all layers
+    activeLayer = 'all';
+    Object.keys(markers).forEach(k => {
+      if (!map.hasLayer(markers[k])) map.addLayer(markers[k]);
+    });
     map.flyTo([39.5, -98.35], 4, { animate: true, duration: 1 });
     return;
   }
 
-  const group = markers[layerKey];
-  if (!group) {
-    console.warn(`[Themis] No marker group for: ${layerKey}`);
-    return;
-  }
+  // Show ONLY this layer — hide all others
+  activeLayer = layerKey;
+  Object.keys(markers).forEach(k => {
+    if (k === layerKey) {
+      if (!map.hasLayer(markers[k])) map.addLayer(markers[k]);
+    } else {
+      if (map.hasLayer(markers[k])) map.removeLayer(markers[k]);
+    }
+  });
 
-  const layers = group.getLayers();
+  // Dim other legend rows
+  document.querySelectorAll('.legend-row').forEach(r => {
+    if (r.dataset.layer !== layerKey && r.dataset.layer !== 'all') {
+      r.classList.add('dimmed');
+    }
+  });
+
+  // Navigate to this layer's markers
+  const group = markers[layerKey];
+  const layers = group ? group.getLayers() : [];
   console.log(`[Themis] ${layerKey}: ${layers.length} markers`);
 
-  if (layers.length === 0) {
-    console.warn(`[Themis] Layer empty: ${layerKey}`);
-    return;
-  }
-
-  try {
-    map.fitBounds(group.getBounds().pad(0.1), {
-      animate: true,
-      duration: 1,
-      maxZoom: 7,
-    });
-  } catch(e) {
-    console.warn(`[Themis] fitBounds error: ${layerKey}`, e);
+  if (layers.length > 0) {
+    try {
+      map.fitBounds(group.getBounds().pad(0.1), {
+        animate: true,
+        duration: 1,
+        maxZoom: 7,
+      });
+    } catch(e) {
+      console.warn(`[Themis] fitBounds error:`, e);
+    }
   }
 }
 
@@ -986,7 +997,7 @@ function updateLegendCounts() {
 
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
-  if (window.innerWidth <= 640) {
+  if (window.innerWidth <= 768) {
     sidebar.classList.toggle('open');
   } else {
     sidebar.classList.toggle('collapsed');

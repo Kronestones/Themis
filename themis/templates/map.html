@@ -527,6 +527,16 @@
           FBI Surveillance Planes
           <span class="legend-count" id="count-fbi_surveillance"></span>
         </div>
+        <div class="legend-row" data-layer="predictive_policing" onclick="focusLayer('predictive_policing', this)">
+          <div class="legend-dot" style="background:#e879f9; border-radius:0; clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%)"></div>
+          Predictive Policing
+          <span class="legend-count" id="count-predictive_policing"></span>
+        </div>
+        <div class="legend-row" data-layer="rtcc" onclick="focusLayer('rtcc', this)">
+          <div class="legend-dot" style="background:#34d399; border-radius:0; clip-path:polygon(35% 0%,65% 0%,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0% 65%,0% 35%,35% 35%)"></div>
+          Real Time Crime Centers
+          <span class="legend-count" id="count-rtcc"></span>
+        </div>
 
         <div style="margin-top:10px; padding: 10px 16px 6px; border-top:1px solid var(--border);">
           <div style="font-size:9px; color:var(--muted); line-height:1.6;">
@@ -573,6 +583,8 @@ const INFRA_COLORS = {
   flock_lpr:           '#22d3ee',  // cyan pentagon
   css_aircraft:        '#fb923c',  // orange star
   fbi_surveillance:    '#818cf8',  // indigo circle
+  predictive_policing: '#e879f9',  // fuchsia hexagon
+  rtcc:                '#34d399',  // emerald cross
 };
 
 const DETECTION_COLORS = {
@@ -614,6 +626,8 @@ const TYPE_LABELS = {
   flock_lpr:                 'Flock Safety LPR',
   css_aircraft:              'Cell-Site Simulator Aircraft',
   fbi_surveillance:          'FBI Surveillance Plane',
+  predictive_policing:       'Predictive Policing Software',
+  rtcc:                      'Real Time Crime Center',
 };
 
 // ── Know Your Rights lookup ───────────────────────────────────────────────────
@@ -704,7 +718,16 @@ const KYR = {
     url:  "https://www.eff.org/deeplinks/2023/02/flock-safety-wants-build-privately-owned-mass-surveillance-infrastructure",
     label: "EFF: Flock Safety Mass Surveillance",
   },
-  fbi_surveillance: {
+  predictive_policing: {
+    text: "Predictive policing algorithms have documented racial bias. Being flagged by an algorithm is not probable cause for stop or arrest. You have the right to challenge algorithmic evidence in court and request the model's methodology under FOIA.",
+    url:  "https://www.aclu.org/issues/racial-justice/race-and-criminal-justice/predictive-policing",
+    label: "ACLU: Predictive Policing",
+  },
+  rtcc: {
+    text: "Real Time Crime Centers aggregate all local surveillance — cameras, LPR, ShotSpotter, social media — into one feed. Data is often retained for years. You can FOIA records about yourself and challenge data sharing agreements.",
+    url:  "https://www.eff.org/issues/surveillance-cameras",
+    label: "EFF: Surveillance Infrastructure",
+  },
     text: "FBI surveillance planes use shell companies to hide their identity. If you spot a circling plane, document its tail number and check FAA records. You cannot be charged for observing aircraft in public airspace.",
     url:  "https://www.eff.org/deeplinks/2015/06/fbi-using-fake-companies-disguise-surveillance-planes",
     label: "EFF: FBI Surveillance Planes",
@@ -764,6 +787,8 @@ const markers = {
   flock_lpr:          L.layerGroup().addTo(map),
   css_aircraft:       L.layerGroup().addTo(map),
   fbi_surveillance:   L.layerGroup().addTo(map),
+  predictive_policing:L.layerGroup().addTo(map),
+  rtcc:               L.layerGroup().addTo(map),
 };
 
 // ── Marker factory ────────────────────────────────────────────────────────────
@@ -809,6 +834,8 @@ const MARKER_SHAPES = {
   flock_lpr:           'pentagon',
   css_aircraft:        'star',
   fbi_surveillance:    'circle',
+  predictive_policing: 'hexagon',
+  rtcc:                'cross',
   default:             'circle',
 };
 
@@ -861,6 +888,24 @@ function shapeHtml(shape, color, size, pulse) {
         ${pulse ? 'animation:pulse 2s infinite;' : ''}
       "></div>`;
 
+    case 'hexagon':
+      return `<div style="width:${s*1.8}px;height:${s*1.8}px;
+        background:${color};
+        clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);
+        ${base}
+        filter:drop-shadow(0 0 4px ${color});
+        ${pulse ? 'animation:pulse 2s infinite;' : ''}
+      "></div>`;
+
+    case 'cross':
+      return `<div style="width:${s*1.8}px;height:${s*1.8}px;
+        background:${color};
+        clip-path:polygon(35% 0%,65% 0%,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0% 65%,0% 35%,35% 35%);
+        ${base}
+        filter:drop-shadow(0 0 4px ${color});
+        ${pulse ? 'animation:pulse 2s infinite;' : ''}
+      "></div>`;
+
     default: // circle
       return `<div style="width:${s*2}px;height:${s*2}px;
         border-radius:50%;
@@ -877,6 +922,8 @@ function makeMarker(lat, lng, color, radius, pulse, layerKey) {
   const size  = shape === 'triangle' ? [radius*2, radius*1.7]
               : shape === 'star'     ? [radius*1.8, radius*1.8]
               : shape === 'pentagon' ? [radius*1.6, radius*1.6]
+              : shape === 'hexagon'  ? [radius*1.8, radius*1.8]
+              : shape === 'cross'    ? [radius*1.8, radius*1.8]
               : shape === 'diamond'  ? [radius*1.2, radius*1.2]
               : shape === 'square'   ? [radius*1.5, radius*1.5]
               : [radius*2, radius*2];

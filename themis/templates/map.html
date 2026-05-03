@@ -497,6 +497,36 @@
           Scan Detections
           <span class="legend-count" id="count-scan"></span>
         </div>
+        <div class="legend-row" data-layer="palantir" onclick="focusLayer('palantir', this)">
+          <div class="legend-dot" style="background:#ff6b35; border-radius:0; clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%)"></div>
+          Palantir Contracts
+          <span class="legend-count" id="count-palantir"></span>
+        </div>
+        <div class="legend-row" data-layer="shotspotter" onclick="focusLayer('shotspotter', this)">
+          <div class="legend-dot" style="background:#a3e635"></div>
+          ShotSpotter / Acoustic
+          <span class="legend-count" id="count-shotspotter"></span>
+        </div>
+        <div class="legend-row" data-layer="jttf" onclick="focusLayer('jttf', this)">
+          <div class="legend-dot" style="background:#dc2626; border-radius:2px; transform:rotate(45deg)"></div>
+          Joint Terrorism Task Forces
+          <span class="legend-count" id="count-jttf"></span>
+        </div>
+        <div class="legend-row" data-layer="flock_lpr" onclick="focusLayer('flock_lpr', this)">
+          <div class="legend-dot" style="background:#22d3ee; border-radius:0; clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%)"></div>
+          Flock Safety LPR
+          <span class="legend-count" id="count-flock_lpr"></span>
+        </div>
+        <div class="legend-row" data-layer="css_aircraft" onclick="focusLayer('css_aircraft', this)">
+          <div class="legend-dot" style="background:#fb923c; border-radius:0; clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>
+          Cell-Site Simulator Aircraft
+          <span class="legend-count" id="count-css_aircraft"></span>
+        </div>
+        <div class="legend-row" data-layer="fbi_surveillance" onclick="focusLayer('fbi_surveillance', this)">
+          <div class="legend-dot" style="background:#818cf8"></div>
+          FBI Surveillance Planes
+          <span class="legend-count" id="count-fbi_surveillance"></span>
+        </div>
 
         <div style="margin-top:10px; padding: 10px 16px 6px; border-top:1px solid var(--border);">
           <div style="font-size:9px; color:var(--muted); line-height:1.6;">
@@ -533,6 +563,16 @@ const INFRA_COLORS = {
   lpr_network:         '#4a8fd4',
   border_surveillance: '#4abfc8',
   police_drone:        '#e0c252',
+  imsi_catcher:        '#e05252',
+  facial_recognition:  '#e07832',
+  surveillance_camera: '#f472b6',
+  robot_detection:     '#4abf7e',
+  palantir:            '#ff6b35',  // red-orange pentagon
+  shotspotter:         '#a3e635',  // yellow-green circle
+  jttf:                '#dc2626',  // deep red diamond
+  flock_lpr:           '#22d3ee',  // cyan pentagon
+  css_aircraft:        '#fb923c',  // orange star
+  fbi_surveillance:    '#818cf8',  // indigo circle
 };
 
 const DETECTION_COLORS = {
@@ -568,6 +608,12 @@ const TYPE_LABELS = {
   surveillance_port:         'Surveillance Port',
   license_plate_reader:      'License Plate Reader',
   known_infrastructure:      'Known Infrastructure',
+  palantir:                  'Palantir Contract',
+  shotspotter:               'ShotSpotter / Acoustic',
+  jttf:                      'Joint Terrorism Task Force',
+  flock_lpr:                 'Flock Safety LPR',
+  css_aircraft:              'Cell-Site Simulator Aircraft',
+  fbi_surveillance:          'FBI Surveillance Plane',
 };
 
 // ── Know Your Rights lookup ───────────────────────────────────────────────────
@@ -638,6 +684,36 @@ const KYR = {
     url:  "https://www.aclu.org/know-your-rights",
     label: "ACLU: Know Your Rights",
   },
+  palantir: {
+    text: "Palantir aggregates data from multiple government databases without your knowledge. You have the right to request records about yourself under FOIA. Challenge data sharing in court if used against you.",
+    url:  "https://www.eff.org/deeplinks/2021/04/palantirs-data-grab",
+    label: "EFF: Palantir and Police Surveillance",
+  },
+  shotspotter: {
+    text: "ShotSpotter alerts have led to wrongful stops and searches. A ShotSpotter alert alone is not probable cause for arrest. You have the right to refuse a search. Internal data shows 89% of alerts find no gun crime.",
+    url:  "https://www.aclu.org/issues/criminal-law-reform/reforming-police/shotspotter",
+    label: "ACLU: ShotSpotter",
+  },
+  jttf: {
+    text: "JTTFs have broad surveillance authority including monitoring political and religious activity. You are never required to speak to a JTTF agent without a lawyer. Anything you say can be used federally.",
+    url:  "https://www.aclu.org/issues/national-security/joint-terrorism-task-forces",
+    label: "ACLU: Joint Terrorism Task Forces",
+  },
+  flock_lpr: {
+    text: "Flock Safety cameras record every vehicle that passes. Data is shared across agencies and retained up to 30 days or longer. You can request your vehicle's data and challenge retention under state privacy laws.",
+    url:  "https://www.eff.org/deeplinks/2023/02/flock-safety-wants-build-privately-owned-mass-surveillance-infrastructure",
+    label: "EFF: Flock Safety Mass Surveillance",
+  },
+  fbi_surveillance: {
+    text: "FBI surveillance planes use shell companies to hide their identity. If you spot a circling plane, document its tail number and check FAA records. You cannot be charged for observing aircraft in public airspace.",
+    url:  "https://www.eff.org/deeplinks/2015/06/fbi-using-fake-companies-disguise-surveillance-planes",
+    label: "EFF: FBI Surveillance Planes",
+  },
+  css_aircraft: {
+    text: "Airborne cell-site simulators intercept all phones in an area without warrants. Using airplane mode when aircraft are overhead limits exposure. Document tail numbers and report to your local civil liberties organization.",
+    url:  "https://www.eff.org/pages/cell-site-simulators-imsi-catchers",
+    label: "EFF: Cell-Site Simulators",
+  },
 };
 
 function kyrHtml(type) {
@@ -682,6 +758,12 @@ const markers = {
   police_drone:       L.layerGroup().addTo(map),
   surveillance_camera:L.layerGroup().addTo(map),
   robot_detection:    L.layerGroup().addTo(map),
+  palantir:           L.layerGroup().addTo(map),
+  shotspotter:        L.layerGroup().addTo(map),
+  jttf:               L.layerGroup().addTo(map),
+  flock_lpr:          L.layerGroup().addTo(map),
+  css_aircraft:       L.layerGroup().addTo(map),
+  fbi_surveillance:   L.layerGroup().addTo(map),
 };
 
 // ── Marker factory ────────────────────────────────────────────────────────────
@@ -708,12 +790,10 @@ function jitter(lat, lng) {
 
 // Shape definitions per detection type
 const MARKER_SHAPES = {
-  // Infrastructure — circles
   fusion_center:       'circle',
   ice_facility:        'circle',
   camera_network:      'circle',
   lpr_network:         'pentagon',
-  // Detections
   drone_signal:        'circle',
   drone_bluetooth:     'diamond',
   scan:                'circle',
@@ -723,6 +803,12 @@ const MARKER_SHAPES = {
   police_drone:        'star',
   surveillance_camera: 'circle',
   robot_detection:     'square',
+  palantir:            'pentagon',
+  shotspotter:         'circle',
+  jttf:                'diamond',
+  flock_lpr:           'pentagon',
+  css_aircraft:        'star',
+  fbi_surveillance:    'circle',
   default:             'circle',
 };
 

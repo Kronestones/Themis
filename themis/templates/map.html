@@ -993,41 +993,53 @@ async function loadAll() {
     infraData  = infraJson.records  || [];
     detectData = detectJson.mapped  || [];
 
+    // Hide loading screen immediately — don't wait for markers to render
+    document.getElementById('loading').classList.add('hidden');
+
+    // Render in chunks on next ticks so UI stays responsive
+    await new Promise(r => setTimeout(r, 0));
     renderInfraMarkers();
+    await new Promise(r => setTimeout(r, 0));
     renderDetectionMarkers();
+    await new Promise(r => setTimeout(r, 0));
     updateLegendCounts();
     updateStats(detectJson.total);
 
   } catch (e) {
     console.error('Load error:', e);
-  } finally {
     document.getElementById('loading').classList.add('hidden');
   }
 }
 
 // ── Render infrastructure markers ─────────────────────────────────────────────
 
-function renderInfraMarkers() {
+async function renderInfraMarkers() {
   Object.values(markers).forEach(g => g.clearLayers());
   Object.keys(_jitterRegistry).forEach(k => delete _jitterRegistry[k]);
 
-  infraData.forEach(r => {
-    if (!r.lat || !r.lng) return;
-    const color  = INFRA_COLORS[r.type] || '#9b6dd4';
-    const layer  = markers[r.type] || markers.scan;
-    const label  = TYPE_LABELS[r.type] || r.type;
+  const BATCH = 100; // render 100 markers at a time
+  for (let i = 0; i < infraData.length; i += BATCH) {
+    const batch = infraData.slice(i, i + BATCH);
+    batch.forEach(r => {
+      if (!r.lat || !r.lng) return;
+      const color  = INFRA_COLORS[r.type] || '#9b6dd4';
+      const layer  = markers[r.type] || markers.scan;
+      const label  = TYPE_LABELS[r.type] || r.type;
 
-    const pos = jitter(r.lat, r.lng);
-    const m   = makeMarker(pos.lat, pos.lng, color, 7, false, r.type);
-    m.bindPopup(`
-      <div class="popup-type" style="color:${color}">${label}</div>
-      <div class="popup-name">${r.name}</div>
-      <div class="popup-detail">${r.description || ''}</div>
-      <div class="popup-source">📍 ${r.city}, ${r.state}<br>⚖ Source: ${r.source || 'Public record'}</div>
-      ${kyrHtml(r.type)}
-    `, { maxWidth: 300 });
-    layer.addLayer(m);
-  });
+      const pos = jitter(r.lat, r.lng);
+      const m   = makeMarker(pos.lat, pos.lng, color, 7, false, r.type);
+      m.bindPopup(`
+        <div class="popup-type" style="color:${color}">${label}</div>
+        <div class="popup-name">${r.name}</div>
+        <div class="popup-detail">${r.description || ''}</div>
+        <div class="popup-source">📍 ${r.city}, ${r.state}<br>⚖ Source: ${r.source || 'Public record'}</div>
+        ${kyrHtml(r.type)}
+      `, { maxWidth: 300 });
+      layer.addLayer(m);
+    });
+    // Yield to browser between batches so UI stays responsive
+    await new Promise(r => setTimeout(r, 0));
+  }
 }
 
 // ── Render detection markers ───────────────────────────────────────────────────

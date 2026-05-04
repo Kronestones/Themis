@@ -537,6 +537,21 @@
           Real Time Crime Centers
           <span class="legend-count" id="count-rtcc"></span>
         </div>
+        <div class="legend-row" data-layer="clearview_ai" onclick="focusLayer('clearview_ai', this)">
+          <div class="legend-dot" style="background:#f43f5e"></div>
+          Clearview AI Clients
+          <span class="legend-count" id="count-clearview_ai"></span>
+        </div>
+        <div class="legend-row" data-layer="county_imsi" onclick="focusLayer('county_imsi', this)">
+          <div class="legend-dot" style="width:0;height:0;background:transparent;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #f97316;border-radius:0"></div>
+          County/State Stingrays
+          <span class="legend-count" id="count-county_imsi"></span>
+        </div>
+        <div class="legend-row" data-layer="vigilant_lpr" onclick="focusLayer('vigilant_lpr', this)">
+          <div class="legend-dot" style="background:#06b6d4; border-radius:0; clip-path:polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%)"></div>
+          Vigilant Solutions LPR
+          <span class="legend-count" id="count-vigilant_lpr"></span>
+        </div>
 
         <div style="margin-top:10px; padding: 10px 16px 6px; border-top:1px solid var(--border);">
           <div style="font-size:9px; color:var(--muted); line-height:1.6;">
@@ -585,6 +600,9 @@ const INFRA_COLORS = {
   fbi_surveillance:    '#818cf8',  // indigo circle
   predictive_policing: '#e879f9',  // fuchsia hexagon
   rtcc:                '#34d399',  // emerald cross
+  clearview_ai:        '#f43f5e',  // rose circle
+  county_imsi:         '#f97316',  // orange triangle
+  vigilant_lpr:        '#06b6d4',  // sky blue pentagon
 };
 
 const DETECTION_COLORS = {
@@ -628,6 +646,9 @@ const TYPE_LABELS = {
   fbi_surveillance:          'FBI Surveillance Plane',
   predictive_policing:       'Predictive Policing Software',
   rtcc:                      'Real Time Crime Center',
+  clearview_ai:              'Clearview AI Client',
+  county_imsi:               'County/State IMSI Catcher',
+  vigilant_lpr:              'Vigilant Solutions LPR',
 };
 
 // ── Know Your Rights lookup ───────────────────────────────────────────────────
@@ -723,6 +744,21 @@ const KYR = {
     url:  "https://www.aclu.org/issues/racial-justice/race-and-criminal-justice/predictive-policing",
     label: "ACLU: Predictive Policing",
   },
+  clearview_ai: {
+    text: "Clearview AI scraped your photos without consent from social media. You can request your data at clearview.ai/request-access. Several states have won settlements. Challenge any arrest based solely on facial recognition match.",
+    url:  "https://www.aclu.org/issues/privacy-technology/surveillance-technologies/face-recognition-technology",
+    label: "ACLU: Fight Facial Recognition",
+  },
+  county_imsi: {
+    text: "County and state Stingrays intercept your phone without a warrant in many jurisdictions. You can reduce exposure by using Signal, disabling 2G, and using a VPN. A Stingray alert alone is never probable cause.",
+    url:  "https://www.eff.org/pages/cell-site-simulators-imsi-catchers",
+    label: "EFF: IMSI Catchers",
+  },
+  vigilant_lpr: {
+    text: "Vigilant Solutions stores 9+ billion license plate reads in a national repository shared across 3,000+ agencies. You can request your plate's read history under state public records laws and challenge retention policies.",
+    url:  "https://www.eff.org/pages/automated-license-plate-readers-alpr",
+    label: "EFF: License Plate Readers",
+  },
   rtcc: {
     text: "Real Time Crime Centers aggregate all local surveillance — cameras, LPR, ShotSpotter, social media — into one feed. Data is often retained for years. You can FOIA records about yourself and challenge data sharing agreements.",
     url:  "https://www.eff.org/issues/surveillance-cameras",
@@ -789,6 +825,9 @@ const markers = {
   fbi_surveillance:   L.layerGroup().addTo(map),
   predictive_policing:L.layerGroup().addTo(map),
   rtcc:               L.layerGroup().addTo(map),
+  clearview_ai:       L.layerGroup().addTo(map),
+  county_imsi:        L.layerGroup().addTo(map),
+  vigilant_lpr:       L.layerGroup().addTo(map),
 };
 
 // ── Marker factory ────────────────────────────────────────────────────────────
@@ -836,6 +875,9 @@ const MARKER_SHAPES = {
   fbi_surveillance:    'circle',
   predictive_policing: 'hexagon',
   rtcc:                'cross',
+  clearview_ai:        'circle',
+  county_imsi:         'triangle',
+  vigilant_lpr:        'pentagon',
   default:             'circle',
 };
 

@@ -56,13 +56,24 @@
       --purple:    #9b6dd4;
     }
 
-    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      position: relative;
+    }
 
     /* ── Layout ── */
     #shell {
       display: flex;
       flex-direction: column;
       height: 100vh;
+      min-height: 100%;
+      width: 100%;
       overflow: hidden;
     }
 
@@ -138,6 +149,7 @@
     /* ── Map ── */
     #map {
       flex: 1;
+      min-height: 200px;
       background: #0a0c0f;
     }
 

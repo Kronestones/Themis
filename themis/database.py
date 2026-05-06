@@ -164,11 +164,15 @@ def get_detections(limit: int = 500) -> list:
         session.close()
 
 
-def get_infrastructure() -> list:
-    """Return all verified static infrastructure as dicts."""
+def get_infrastructure(filter_type: str = None) -> list:
+    """Return verified static infrastructure as dicts.
+    Pass filter_type to return only one layer at a time (faster for Render)."""
     session = get_session()
     try:
-        rows = session.query(Infrastructure).filter_by(verified=True).all()
+        q = session.query(Infrastructure).filter_by(verified=True)
+        if filter_type:
+            q = q.filter(Infrastructure.type == filter_type)
+        rows = q.all()
         return [_infra_to_dict(r) for r in rows]
     except Exception as e:
         print(f"[DB] get_infrastructure error: {e}")

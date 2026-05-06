@@ -981,33 +981,65 @@ function makeMarker(lat, lng, color, radius, pulse, layerKey) {
 // ── Load data ─────────────────────────────────────────────────────────────────
 
 async function loadAll() {
+  // Show map immediately
+  document.getElementById('loading').classList.add('hidden');
+
+  // Layer types in order of visual importance
+  const typeOrder = [
+    'fusion_center', 'ice_facility', 'border_surveillance',
+    'camera_network', 'surveillance_camera', 'lpr_network',
+    'flock_lpr', 'vigilant_lpr', 'imsi_catcher', 'county_imsi',
+    'facial_recognition', 'clearview_ai', 'police_drone',
+    'shotspotter', 'palantir', 'jttf', 'rtcc',
+    'predictive_policing', 'css_aircraft', 'fbi_surveillance',
+    'robot_detection',
+  ];
+
+  // Fetch and render one layer at a time
+  // Each request is small and fast — no timeout risk
+  for (const type of typeOrder) {
+    try {
+      const resp = await fetch(`/api/infrastructure?type=${type}`);
+      const json = await resp.json();
+      const records = json.records || [];
+
+      records.forEach(r => {
+        if (!r.lat || !r.lng) return;
+        infraData.push(r);
+        const color = INFRA_COLORS[r.type] || '#9b6dd4';
+        const layer = markers[r.type] || markers.scan;
+        const label = TYPE_LABELS[r.type] || r.type;
+        const pos   = jitter(r.lat, r.lng);
+        const m     = makeMarker(pos.lat, pos.lng, color, 7, false, r.type);
+        m.bindPopup(`
+          <div class="popup-type" style="color:${color}">${label}</div>
+          <div class="popup-name">${r.name}</div>
+          <div class="popup-detail">${r.description || ''}</div>
+          <div class="popup-source">📍 ${r.city}, ${r.state}<br>⚖ Source: ${r.source || 'Public record'}</div>
+          ${kyrHtml(r.type)}
+        `, { maxWidth: 300 });
+        layer.addLayer(m);
+      });
+
+      updateLegendCounts();
+    } catch (e) {
+      console.warn(`[Themis] Failed to load layer: ${type}`, e);
+    }
+
+    // Small yield between layers so map stays responsive
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+
+  // Fetch live detections last
   try {
-    const [infraResp, detectResp] = await Promise.all([
-      fetch('/api/infrastructure'),
-      fetch('/api/detections'),
-    ]);
-
-    const infraJson  = await infraResp.json();
+    const detectResp = await fetch('/api/detections');
     const detectJson = await detectResp.json();
-
-    infraData  = infraJson.records  || [];
-    detectData = detectJson.mapped  || [];
-
-    // Hide loading screen immediately — don't wait for markers to render
-    document.getElementById('loading').classList.add('hidden');
-
-    // Render in chunks on next ticks so UI stays responsive
-    await new Promise(r => setTimeout(r, 0));
-    renderInfraMarkers();
-    await new Promise(r => setTimeout(r, 0));
+    detectData = detectJson.mapped || [];
     renderDetectionMarkers();
-    await new Promise(r => setTimeout(r, 0));
     updateLegendCounts();
     updateStats(detectJson.total);
-
   } catch (e) {
-    console.error('Load error:', e);
-    document.getElementById('loading').classList.add('hidden');
+    console.warn('[Themis] Failed to load detections:', e);
   }
 }
 

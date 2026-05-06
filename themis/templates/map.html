@@ -382,6 +382,7 @@
 <div id="loading">
   <div class="loading-logo">THE<span>MIS</span></div>
   <div class="loading-msg">THE WATCH IS LOADING…</div>
+  <div id="loading-status" style="font-size:10px;color:#4a8fd4;margin-top:12px;letter-spacing:1px;font-family:monospace"></div>
 </div>
 
 <div id="shell">
@@ -981,10 +982,15 @@ function makeMarker(lat, lng, color, radius, pulse, layerKey) {
 // ── Load data ─────────────────────────────────────────────────────────────────
 
 async function loadAll() {
-  // Show map immediately
+  const status = document.getElementById('loading-status');
+  const setStatus = (msg) => { if (status) status.textContent = msg; };
+
+  setStatus('INITIALIZING MAP…');
+
+  // Show map after 3s max regardless — timer in boot handles this
+  // But also hide immediately here
   document.getElementById('loading').classList.add('hidden');
 
-  // Layer types in order of visual importance
   const typeOrder = [
     'fusion_center', 'ice_facility', 'border_surveillance',
     'camera_network', 'surveillance_camera', 'lpr_network',
@@ -995,10 +1001,9 @@ async function loadAll() {
     'robot_detection',
   ];
 
-  // Fetch and render one layer at a time
-  // Each request is small and fast — no timeout risk
   for (const type of typeOrder) {
     try {
+      setStatus(`LOADING ${type.toUpperCase().replace('_',' ')}…`);
       const resp = await fetch(`/api/infrastructure?type=${type}`);
       const json = await resp.json();
       const records = json.records || [];
@@ -1026,12 +1031,11 @@ async function loadAll() {
       console.warn(`[Themis] Failed to load layer: ${type}`, e);
     }
 
-    // Small yield between layers so map stays responsive
     await new Promise(resolve => setTimeout(resolve, 10));
   }
 
-  // Fetch live detections last
   try {
+    setStatus('LOADING DETECTIONS…');
     const detectResp = await fetch('/api/detections');
     const detectJson = await detectResp.json();
     detectData = detectJson.mapped || [];
@@ -1041,6 +1045,8 @@ async function loadAll() {
   } catch (e) {
     console.warn('[Themis] Failed to load detections:', e);
   }
+
+  setStatus('');
 }
 
 // ── Render infrastructure markers ─────────────────────────────────────────────
@@ -1282,6 +1288,28 @@ setInterval(async () => {
 }, 60000);
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+
+// Force hide loading screen after 3 seconds no matter what
+setTimeout(() => {
+  const loading = document.getElementById('loading');
+  if (loading) loading.classList.add('hidden');
+}, 3000);
+
+// Catch any uncaught JS errors and display them on screen
+window.onerror = function(msg, src, line, col, err) {
+  const loading = document.getElementById('loading');
+  if (loading) {
+    loading.innerHTML = `
+      <div style="color:#e05252;font-family:monospace;font-size:12px;padding:30px;text-align:left;max-width:90vw">
+        <div style="font-size:16px;margin-bottom:16px;color:#fff">⚠ THEMIS ERROR</div>
+        <div style="margin-bottom:8px"><b>Message:</b> ${msg}</div>
+        <div style="margin-bottom:8px"><b>Line:</b> ${line}:${col}</div>
+        <div style="margin-bottom:8px"><b>Source:</b> ${src}</div>
+        <div style="margin-top:20px;color:#a78bfa;font-size:11px">Screenshot this and report to dev</div>
+      </div>`;
+  }
+  return false;
+};
 
 loadAll();
 </script>

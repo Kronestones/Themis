@@ -594,6 +594,31 @@
           Vigilant Solutions LPR
           <span class="legend-count" id="count-vigilant_lpr"></span>
         </div>
+        <div class="legend-row" data-layer="dhs_cisa" onclick="focusLayer('dhs_cisa', this)">
+          <div class="legend-dot" style="background:#7c3aed; border-radius:0; clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%)"></div>
+          DHS / CISA Monitoring
+          <span class="legend-count" id="count-dhs_cisa"></span>
+        </div>
+        <div class="legend-row" data-layer="federal_building" onclick="focusLayer('federal_building', this)">
+          <div class="legend-dot" style="background:#6366f1; border-radius:2px"></div>
+          Federal Building Surveillance
+          <span class="legend-count" id="count-federal_building"></span>
+        </div>
+        <div class="legend-row" data-layer="joint_ops" onclick="focusLayer('joint_ops', this)">
+          <div class="legend-dot" style="background:#dc2626; border-radius:0; clip-path:polygon(35% 0%,65% 0%,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0% 65%,0% 35%,35% 35%)"></div>
+          Joint Operations Centers
+          <span class="legend-count" id="count-joint_ops"></span>
+        </div>
+        <div class="legend-row" data-layer="port_surveillance" onclick="focusLayer('port_surveillance', this)">
+          <div class="legend-dot" style="background:#0891b2"></div>
+          Port / Maritime Surveillance
+          <span class="legend-count" id="count-port_surveillance"></span>
+        </div>
+        <div class="legend-row" data-layer="school_surveillance" onclick="focusLayer('school_surveillance', this)">
+          <div class="legend-dot" style="background:#f59e0b; border-radius:2px; transform:rotate(45deg)"></div>
+          School Surveillance
+          <span class="legend-count" id="count-school_surveillance"></span>
+        </div>
 
         <div style="margin-top:10px; padding: 10px 16px 6px; border-top:1px solid var(--border);">
           <div style="font-size:9px; color:var(--muted); line-height:1.6;">
@@ -645,6 +670,11 @@ const INFRA_COLORS = {
   clearview_ai:        '#f43f5e',  // rose circle
   county_imsi:         '#f97316',  // orange triangle
   vigilant_lpr:        '#06b6d4',  // sky blue pentagon
+  dhs_cisa:            '#7c3aed',  // violet hexagon
+  federal_building:    '#6366f1',  // indigo square
+  joint_ops:           '#dc2626',  // red cross
+  port_surveillance:   '#0891b2',  // cyan circle
+  school_surveillance: '#f59e0b',  // amber diamond
 };
 
 const DETECTION_COLORS = {
@@ -691,6 +721,11 @@ const TYPE_LABELS = {
   clearview_ai:              'Clearview AI Client',
   county_imsi:               'County/State IMSI Catcher',
   vigilant_lpr:              'Vigilant Solutions LPR',
+  dhs_cisa:                  'DHS / CISA Monitoring',
+  federal_building:          'Federal Building Surveillance',
+  joint_ops:                 'Joint Operations Center',
+  port_surveillance:         'Port / Maritime Surveillance',
+  school_surveillance:       'School Surveillance',
 };
 
 // ── Know Your Rights lookup ───────────────────────────────────────────────────
@@ -796,6 +831,31 @@ const KYR = {
     url:  "https://www.eff.org/pages/cell-site-simulators-imsi-catchers",
     label: "EFF: IMSI Catchers",
   },
+  dhs_cisa: {
+    text: "CISA monitors critical infrastructure networks including hospitals, utilities, and communications. You can request information about monitoring programs under FOIA. Report suspicious federal surveillance of your organization to the EFF.",
+    url:  "https://www.eff.org/issues/government-surveillance",
+    label: "EFF: Government Surveillance",
+  },
+  federal_building: {
+    text: "Federal buildings operate surveillance under GSA authority. Cameras are present in all public areas. You have the right to film in publicly accessible federal spaces. No warrant is required to view footage already captured.",
+    url:  "https://www.aclu.org/know-your-rights/photographers-know-your-rights",
+    label: "ACLU: Know Your Rights — Photography",
+  },
+  joint_ops: {
+    text: "Joint Operations Centers aggregate intelligence from multiple federal agencies including DEA, ATF, and FBI. You have the right to remain silent with any federal agent. Never speak to federal investigators without an attorney present.",
+    url:  "https://www.aclu.org/know-your-rights/what-do-if-you-re-stopped-fbi-other-federal-law-enforcement",
+    label: "ACLU: If Stopped by Federal Law Enforcement",
+  },
+  port_surveillance: {
+    text: "Port surveillance operates under CBP and Coast Guard authority. At ports of entry, CBP can search your devices without a warrant. You can decline to provide passwords but may be detained. Document everything.",
+    url:  "https://www.eff.org/wp/digital-privacy-us-border",
+    label: "EFF: Digital Privacy at the Border",
+  },
+  school_surveillance: {
+    text: "School surveillance software like Gaggle and GoGuardian monitors student devices 24/7 including personal accounts and after-school activity. Parents have the right to request what data has been collected on their child under FERPA.",
+    url:  "https://www.eff.org/issues/student-privacy",
+    label: "EFF: Student Privacy",
+  },
   vigilant_lpr: {
     text: "Vigilant Solutions stores 9+ billion license plate reads in a national repository shared across 3,000+ agencies. You can request your plate's read history under state public records laws and challenge retention policies.",
     url:  "https://www.eff.org/pages/automated-license-plate-readers-alpr",
@@ -871,6 +931,11 @@ const markers = {
   clearview_ai:       L.layerGroup().addTo(map),
   county_imsi:        L.layerGroup().addTo(map),
   vigilant_lpr:       L.layerGroup().addTo(map),
+  dhs_cisa:           L.layerGroup().addTo(map),
+  federal_building:   L.layerGroup().addTo(map),
+  joint_ops:          L.layerGroup().addTo(map),
+  port_surveillance:  L.layerGroup().addTo(map),
+  school_surveillance:L.layerGroup().addTo(map),
 };
 
 // ── Marker factory ────────────────────────────────────────────────────────────
@@ -921,6 +986,11 @@ const MARKER_SHAPES = {
   clearview_ai:        'circle',
   county_imsi:         'triangle',
   vigilant_lpr:        'pentagon',
+  dhs_cisa:            'hexagon',
+  federal_building:    'square',
+  joint_ops:           'cross',
+  port_surveillance:   'circle',
+  school_surveillance: 'diamond',
   default:             'circle',
 };
 
@@ -1040,7 +1110,8 @@ async function loadAll() {
     'facial_recognition', 'clearview_ai', 'police_drone',
     'shotspotter', 'palantir', 'jttf', 'rtcc',
     'predictive_policing', 'css_aircraft', 'fbi_surveillance',
-    'robot_detection',
+    'robot_detection', 'dhs_cisa', 'federal_building',
+    'joint_ops', 'port_surveillance', 'school_surveillance',
   ];
 
   for (const type of typeOrder) {
